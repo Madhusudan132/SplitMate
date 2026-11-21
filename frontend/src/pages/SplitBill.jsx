@@ -628,31 +628,77 @@ export default function SplitBill() {
       receipt.grandTotal;
 
   // Save completed split and open Settlement
-  function continueToSettlement() {
-    if (!totalsMatch || !receipt) {
-      setError(
-        "Complete the bill split before continuing."
-      );
-      return;
-    }
-
-    const settlementData = {
-      grandTotal: receipt.grandTotal,
-      friends: friends.map((friend) => ({
-        id: String(friend.id),
-        name: friend.name,
-        share: balances[friend.id],
-      })),
-    };
-
-    sessionStorage.setItem(
-      SETTLEMENT_STORAGE_KEY,
-      JSON.stringify(settlementData)
+ 
+function continueToSettlement() {
+  if (!totalsMatch || !receipt) {
+    setError(
+      "Complete the bill split before continuing."
     );
-
-    navigate("/settlement");
+    return;
   }
 
+  const receiptData = {
+    items: items.map((item) => ({
+      name: item.name,
+      quantity: item.quantity,
+      totalPaise: toPaise(item.price),
+      type: item.type,
+      selected: [...item.selected],
+      allocations: { ...item.allocations },
+    })),
+
+    subtotal: receipt.subtotal,
+    tax: receipt.totalTax,
+    grandTotal: receipt.grandTotal,
+
+    cgst: toPaise(
+      receipt.summary.cgst ?? "0"
+    ),
+
+    sgst: toPaise(
+      receipt.summary.sgst ?? "0"
+    ),
+
+    igst: toPaise(
+      receipt.summary.igst ?? "0"
+    ),
+
+    serviceCharge: toPaise(
+      receipt.summary.service_charge ?? "0"
+    ),
+
+    discount: toPaise(
+      receipt.summary.discount ?? "0"
+    ),
+
+    roundOff: toPaise(
+      receipt.summary.round_off ?? "0",
+      true
+    ),
+  };
+
+  const settlementData = {
+    grandTotal: receipt.grandTotal,
+
+    friends: friends.map((friend) => ({
+      id: String(friend.id),
+      name: friend.name,
+      share: balances[friend.id],
+    })),
+
+    receiptData,
+  };
+
+  sessionStorage.setItem(
+    SETTLEMENT_STORAGE_KEY,
+    JSON.stringify(settlementData)
+  );
+
+  navigate("/settlement");
+}
+
+
+  
   return (
     <div className="split-page">
       {/* PAGE HEADER */}

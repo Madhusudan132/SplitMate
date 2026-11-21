@@ -419,76 +419,84 @@ export default function Settlement() {
   }
 
   // Save the current settlement to Django.
-  async function saveBillToHistory() {
-    if (!paymentMatches || !data || savingBill) {
-      return;
-    }
+  
+async function saveBillToHistory() {
+  if (!paymentMatches || !data || savingBill) {
+    return;
+  }
 
-    const title = billTitle.trim();
+  const title = billTitle.trim();
 
-    if (!title) {
-      setSaveError("Please enter a bill title.");
-      return;
-    }
+  if (!title) {
+    setSaveError("Please enter a bill title.");
+    return;
+  }
 
-    if (title.length > 120) {
-      setSaveError(
-        "Bill title must be 120 characters or fewer."
+  if (title.length > 120) {
+    setSaveError(
+      "Bill title must be 120 characters or fewer."
+    );
+    return;
+  }
+
+  setSavingBill(true);
+  setSaveError("");
+
+  try {
+    const paymentValues = {};
+
+    for (const friend of data.friends) {
+      const amount = toPaise(
+        payments[friend.id]
       );
-      return;
-    }
 
-    setSavingBill(true);
-    setSaveError("");
-
-    try {
-      const paymentValues = {};
-
-      for (const friend of data.friends) {
-        const amount = toPaise(
-          payments[friend.id]
+      if (amount === null) {
+        throw new Error(
+          "Invalid restaurant payment."
         );
-
-        if (amount === null) {
-          throw new Error(
-            "Invalid restaurant payment."
-          );
-        }
-
-        paymentValues[friend.id] = amount;
       }
 
-      const payload = {
-        title,
-        grandTotal: data.grandTotal,
-
-        friends: data.friends.map((friend) => ({
-          id: friend.id,
-          name: friend.name,
-          share: friend.share,
-        })),
-
-        payments: paymentValues,
-
-        transfers: transfers.map((transfer) => ({
-          fromId: transfer.fromId,
-          toId: transfer.toId,
-          amount: transfer.amount,
-          paid: isPaid(transfer),
-        })),
-      };
-
-      const saved = await historyApi.create(payload);
-
-      navigate(`/history/${saved.id}`);
-    } catch (error) {
-      setSaveError(
-        error.message || "Unable to save bill."
-      );
-    } finally {
-      setSavingBill(false);
+      paymentValues[friend.id] = amount;
     }
+
+    const payload = {
+      title,
+
+      grandTotal: data.grandTotal,
+
+      friends: data.friends.map((friend) => ({
+        id: friend.id,
+        name: friend.name,
+        share: friend.share,
+      })),
+
+      payments: paymentValues,
+
+      transfers: transfers.map((transfer) => ({
+        fromId: transfer.fromId,
+        toId: transfer.toId,
+        amount: transfer.amount,
+        paid: isPaid(transfer),
+      })),
+
+      // NEW: Save original receipt and assignments
+      receiptData: data.receiptData ?? {},
+    };
+
+    const saved = await historyApi.create(
+      payload
+    );
+
+    navigate(`/history/${saved.id}`);
+  } catch (error) {
+    setSaveError(
+      error.message || "Unable to save bill."
+    );
+  } finally {
+    setSavingBill(false);
   }
+}
+
 
   const shareText = paymentMatches
     ? [

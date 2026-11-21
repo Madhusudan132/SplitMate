@@ -1,7 +1,7 @@
+
 from django.db import models
 import uuid
 
-# Create your models here.
 
 class Guest(models.Model):
     token_hash = models.CharField(
@@ -9,6 +9,7 @@ class Guest(models.Model):
         unique=True,
         db_index=True,
     )
+
     created_at = models.DateTimeField(
         auto_now_add=True
     )
@@ -30,18 +31,36 @@ class SavedBill(models.Model):
         related_name="bills",
     )
 
-    title = models.CharField(max_length=120)
+    title = models.CharField(
+        max_length=120
+    )
 
+    # Stored in paise
     grand_total = models.BigIntegerField()
 
     # Complete settlement snapshot
-    friends = models.JSONField(default=list)
-    payments = models.JSONField(default=dict)
-    transfers = models.JSONField(default=list)
+    friends = models.JSONField(
+        default=list
+    )
+
+    payments = models.JSONField(
+        default=dict
+    )
+
+    transfers = models.JSONField(
+        default=list
+    )
+
+    # NEW: Optional receipt details
+    receipt_data = models.JSONField(
+        default=dict,
+        blank=True,
+    )
 
     created_at = models.DateTimeField(
         auto_now_add=True
     )
+
     updated_at = models.DateTimeField(
         auto_now=True
     )

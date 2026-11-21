@@ -1835,3 +1835,268 @@ a {
     align-items: center;
   }
 }
+
+
+
+/* ==========================================
+   SPLITMATE PHASE 4.1
+   ADVANCED BILL HISTORY
+========================================== */
+
+.history-filter-panel {
+  margin: 24px 0;
+  padding: 22px;
+  border: 1px solid var(--border-color, #8884);
+  border-radius: 20px;
+  background: rgba(0, 180, 216, 0.035);
+}
+
+.history-filter-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.history-filter-heading h3 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  font-size: 17px;
+}
+
+.history-filter-heading > span {
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+/* Search */
+
+.history-search-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 15px;
+  min-height: 52px;
+  border: 1px solid var(--border-color, #8884);
+  border-radius: 14px;
+  background: var(--card-bg, transparent);
+  color: inherit;
+}
+
+.history-search-box:focus-within {
+  border-color: #00b4d8;
+  box-shadow: 0 0 0 3px rgba(0, 180, 216, 0.12);
+}
+
+.history-search-box input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 15px;
+}
+
+.history-search-box input::placeholder {
+  opacity: 0.6;
+}
+
+.history-search-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.65;
+}
+
+/* Filter Tabs */
+
+.history-filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.history-filter-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 15px;
+  border: 1px solid var(--border-color, #8884);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.history-filter-tabs button:hover {
+  border-color: #00b4d8;
+}
+
+.history-filter-tabs button.active {
+  background: #0077b6;
+  border-color: #0077b6;
+  color: #ffffff;
+}
+
+.history-filter-tabs button span {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(128, 128, 128, 0.15);
+  font-size: 12px;
+}
+
+.history-filter-tabs button.active span {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Sort Controls */
+
+.history-sort-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.history-sort-row label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.history-sort-row select {
+  min-height: 42px;
+  padding: 9px 36px 9px 12px;
+  border: 1px solid var(--border-color, #8884);
+  border-radius: 11px;
+  background: var(--card-bg, transparent);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.history-sort-row select option {
+  background: var(--card-bg, #ffffff);
+  color: var(--text-color, #202020);
+}
+
+.history-clear-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: #0077b6;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Loading */
+
+.history-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 50px 20px;
+  opacity: 0.75;
+}
+
+.history-spin {
+  animation: history-rotate 1s linear infinite;
+}
+
+@keyframes history-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Stats */
+
+.history-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.history-stat {
+  min-width: 0;
+}
+
+.history-stat > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.history-stat strong {
+  overflow-wrap: anywhere;
+}
+
+/* Mobile */
+
+@media (max-width: 900px) {
+  .history-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .history-filter-panel {
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .history-filter-tabs {
+    gap: 7px;
+  }
+
+  .history-filter-tabs button {
+    padding: 9px 12px;
+    font-size: 12px;
+  }
+
+  .history-sort-row select {
+    flex: 1;
+    min-width: 150px;
+  }
+
+  .history-stats {
+    gap: 10px;
+  }
+
+  .history-bill {
+    flex-wrap: wrap;
+  }
+
+  .history-bill-content {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .history-bill-actions {
+    width: 100%;
+  }
+}

@@ -1,12 +1,7 @@
-from django.shortcuts import render
-
-# Create your views here.
 
 import hashlib
-import hmac
 import json
 import re
-from datetime import datetime
 
 from django.db import transaction
 from django.http import JsonResponse
@@ -16,9 +11,11 @@ from .models import Guest, SavedBill
 
 
 TOKEN_PATTERN = re.compile(r"^[a-f0-9]{64}$")
-MAX_AMOUNT = 10**12  # Paise
+
+MAX_AMOUNT = 10**12
 MAX_FRIENDS = 100
 MAX_TRANSFERS = 1000
+MAX_RECEIPT_BYTES = 100_000
 
 
 def error(message, status=400):
@@ -53,8 +50,6 @@ def get_guest(request, create=False):
         )
         return guest
 
-    # Compare hashed identifiers through the
-    # database's exact-match lookup.
     return Guest.objects.filter(
         token_hash=digest
     ).first()
@@ -65,9 +60,39 @@ def read_json(request):
         body = json.loads(
             request.body.decode("utf-8")
         )
-        return body if isinstance(body, dict) else None
+
+        return (
+            body
+            if isinstance(body, dict)
+            else None
+        )
+
     except (ValueError, UnicodeDecodeError):
         return None
+
+
+def validate_title(title):
+    return (
+        isinstance(title, str)
+        and 1 <= len(title.strip()) <= 120
+    )
+
+
+def validate_receipt_data(value):
+    if not isinstance(value, dict):
+        return False
+
+    try:
+        encoded = json.dumps(
+            value,
+            ensure_ascii=False,
+            allow_nan=False,
+        ).encode("utf-8")
+
+        return len(encoded) <= MAX_RECEIPT_BYTES
+
+    except (TypeError, ValueError, OverflowError):
+        return False
 
 
 def validate_bill(payload):
@@ -77,11 +102,11 @@ def validate_bill(payload):
     payments = payload.get("payments")
     transfers = payload.get("transfers")
 
-    if (
-        not isinstance(title, str)
-        or not title.strip()
-        or len(title.strip()) > 120
-    ):
+    receipt_data = payload.get(
+        "receiptData", {}
+    )
+
+    if not validate_title(title):
         return None, "Enter a valid bill title."
 
     if not is_amount(grand_total):
@@ -101,6 +126,9 @@ def validate_bill(payload):
         or len(transfers) > MAX_TRANSFERS
     ):
         return None, "Invalid transfers list."
+
+    if not validate_receipt_data(receipt_data):
+        return None, "Invalid receipt details."
 
     ids = set()
     cleaned_friends = []
@@ -125,6 +153,7 @@ def validate_bill(payload):
             return None, "Invalid friend details."
 
         ids.add(friend_id)
+
         total_shares += share
 
         cleaned_friends.append({
@@ -154,13 +183,13 @@ def validate_bill(payload):
     if total_paid != grand_total:
         return None, "Restaurant payments do not match total."
 
-    # Recalculate the expected settlement on
-    # the server. Do not trust client transfers.
+    # Recalculate transfers on the backend.
     creditors = []
     debtors = []
 
     for friend in cleaned_friends:
         friend_id = friend["id"]
+
         balance = (
             cleaned_payments[friend_id]
             - friend["share"]
@@ -171,6 +200,7 @@ def validate_bill(payload):
                 "id": friend_id,
                 "remaining": balance,
             })
+
         elif balance < 0:
             debtors.append({
                 "id": friend_id,
@@ -178,10 +208,14 @@ def validate_bill(payload):
             })
 
     expected = []
+
     i = 0
     j = 0
 
-    while i < len(debtors) and j < len(creditors):
+    while (
+        i < len(debtors)
+        and j < len(creditors)
+    ):
         debtor = debtors[i]
         creditor = creditors[j]
 
@@ -201,11 +235,14 @@ def validate_bill(payload):
 
         if debtor["remaining"] == 0:
             i += 1
+
         if creditor["remaining"] == 0:
             j += 1
 
     if len(expected) != len(transfers):
-        return None, "Transfer calculations do not match."
+        return None, (
+            "Transfer calculations do not match."
+        )
 
     cleaned_transfers = []
 
@@ -217,9 +254,15 @@ def validate_bill(payload):
 
         if any(
             transfer.get(key) != calculated[key]
-            for key in ("fromId", "toId", "amount")
+            for key in (
+                "fromId",
+                "toId",
+                "amount",
+            )
         ):
-            return None, "Transfer calculations do not match."
+            return None, (
+                "Transfer calculations do not match."
+            )
 
         if type(transfer.get("paid")) is not bool:
             return None, "Invalid payment status."
@@ -235,6 +278,7 @@ def validate_bill(payload):
         "friends": cleaned_friends,
         "payments": cleaned_payments,
         "transfers": cleaned_transfers,
+        "receipt_data": receipt_data,
     }, None
 
 
@@ -254,6 +298,7 @@ def serialize_bill(bill, detail=False):
             "friends": bill.friends,
             "payments": bill.payments,
             "transfers": bill.transfers,
+            "receiptData": bill.receipt_data,
         })
 
     return result
@@ -261,8 +306,14 @@ def serialize_bill(bill, detail=False):
 
 @csrf_exempt
 def bill_collection(request):
-    if request.method not in ("GET", "POST"):
-        return error("Method not allowed.", 405)
+    if request.method not in (
+        "GET",
+        "POST",
+    ):
+        return error(
+            "Method not allowed.",
+            405,
+        )
 
     guest = get_guest(
         request,
@@ -271,14 +322,19 @@ def bill_collection(request):
 
     if not guest:
         if request.method == "GET":
-            # A valid new guest has no saved bills.
             token = request.headers.get(
                 "X-Guest-Token", ""
             )
-            if TOKEN_PATTERN.fullmatch(token):
-                return JsonResponse({"bills": []})
 
-        return error("Invalid guest token.", 401)
+            if TOKEN_PATTERN.fullmatch(token):
+                return JsonResponse({
+                    "bills": []
+                })
+
+        return error(
+            "Invalid guest token.",
+            401,
+        )
 
     if request.method == "GET":
         bills = SavedBill.objects.filter(
@@ -310,7 +366,10 @@ def bill_collection(request):
     )
 
     return JsonResponse(
-        serialize_bill(bill, detail=True),
+        serialize_bill(
+            bill,
+            detail=True,
+        ),
         status=201,
     )
 
@@ -318,14 +377,22 @@ def bill_collection(request):
 @csrf_exempt
 def bill_detail(request, bill_id):
     if request.method not in (
-        "GET", "PATCH", "DELETE"
+        "GET",
+        "PATCH",
+        "DELETE",
     ):
-        return error("Method not allowed.", 405)
+        return error(
+            "Method not allowed.",
+            405,
+        )
 
     guest = get_guest(request)
 
     if not guest:
-        return error("Bill not found.", 404)
+        return error(
+            "Bill not found.",
+            404,
+        )
 
     bill = SavedBill.objects.filter(
         id=bill_id,
@@ -333,59 +400,132 @@ def bill_detail(request, bill_id):
     ).first()
 
     if not bill:
-        return error("Bill not found.", 404)
+        return error(
+            "Bill not found.",
+            404,
+        )
 
     if request.method == "GET":
         return JsonResponse(
-            serialize_bill(bill, detail=True)
+            serialize_bill(
+                bill,
+                detail=True,
+            )
         )
 
     if request.method == "DELETE":
         bill.delete()
-        return JsonResponse({"success": True})
+
+        return JsonResponse({
+            "success": True
+        })
 
     payload = read_json(request)
 
     if payload is None:
         return error("Invalid JSON.")
 
-    # Only payment status may be edited.
-    if set(payload.keys()) != {
-        "transferIndex", "paid"
+    fields = set(payload.keys())
+
+    # ==================================================
+    # NEW: RENAME BILL
+    # ==================================================
+
+    if fields == {"title"}:
+        title = payload.get("title")
+
+        if not validate_title(title):
+            return error(
+                "Enter a valid bill title."
+            )
+
+        with transaction.atomic():
+            bill = (
+                SavedBill.objects
+                .select_for_update()
+                .get(
+                    id=bill_id,
+                    guest=guest,
+                )
+            )
+
+            bill.title = title.strip()
+
+            bill.save(
+                update_fields=[
+                    "title",
+                    "updated_at",
+                ]
+            )
+
+        return JsonResponse(
+            serialize_bill(
+                bill,
+                detail=True,
+            )
+        )
+
+    # ==================================================
+    # EXISTING: UPDATE PAYMENT STATUS
+    # ==================================================
+
+    if fields == {
+        "transferIndex",
+        "paid",
     }:
-        return error("Invalid update fields.")
-
-    index = payload.get("transferIndex")
-    paid = payload.get("paid")
-
-    if (
-        type(index) is not int
-        or type(paid) is not bool
-        or not 0 <= index < len(bill.transfers)
-    ):
-        return error("Invalid transfer update.")
-
-    with transaction.atomic():
-        bill = SavedBill.objects.select_for_update().get(
-            id=bill_id,
-            guest=guest,
+        index = payload.get(
+            "transferIndex"
         )
 
-        transfers = [
-            dict(item)
-            for item in bill.transfers
-        ]
+        paid = payload.get("paid")
 
-        transfers[index]["paid"] = paid
-        bill.transfers = transfers
+        if (
+            type(index) is not int
+            or type(paid) is not bool
+            or not 0 <= index < len(bill.transfers)
+        ):
+            return error(
+                "Invalid transfer update."
+            )
 
-        bill.save(
-            update_fields=[
-                "transfers",
-                "updated_at",
+        with transaction.atomic():
+            bill = (
+                SavedBill.objects
+                .select_for_update()
+                .get(
+                    id=bill_id,
+                    guest=guest,
+                )
+            )
+
+            if index >= len(bill.transfers):
+                return error(
+                    "Invalid transfer update."
+                )
+
+            transfers = [
+                dict(item)
+                for item in bill.transfers
             ]
+
+            transfers[index]["paid"] = paid
+
+            bill.transfers = transfers
+
+            bill.save(
+                update_fields=[
+                    "transfers",
+                    "updated_at",
+                ]
+            )
+
+        return JsonResponse(
+            serialize_bill(
+                bill,
+                detail=True,
+            )
         )
 
-    return JsonResponse(
-        serialize_bill(bill, detail=True)
+    return error(
+        "Invalid update fields."
     )
