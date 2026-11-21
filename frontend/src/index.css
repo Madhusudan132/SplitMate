@@ -1,0 +1,1837 @@
+
+:root {
+  font-family: Arial, sans-serif;
+
+  --bg: #F7F9FC;
+  --card: #FFFFFF;
+  --text: #192437;
+  --blue: #0077B6;
+  --coral: #E26D5C;
+}
+
+[data-theme="dark"] {
+  --bg: #101116;
+  --card: #1D2029;
+  --text: #F5F7FC;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.container {
+  width: min(1180px, 92%);
+  margin: auto;
+}
+
+.navbar {
+  background: var(--card);
+  padding: 18px 0;
+  border-bottom: 1px solid #7773;
+}
+
+.nav-inner {
+  width: min(1180px, 92%);
+  margin: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+
+.brand {
+  font-size: 23px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-logo {
+  color: var(--blue);
+}
+
+.accent,
+.hero h1 span {
+  color: var(--coral);
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.theme-button {
+  background: var(--blue);
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.hero {
+  padding: 100px 0;
+}
+
+.hero h1 {
+  font-size: clamp(40px, 6vw, 72px);
+  line-height: 1.15;
+}
+
+.hero p {
+  font-size: 18px;
+  line-height: 1.7;
+  max-width: 550px;
+}
+
+.primary-button {
+  display: inline-block;
+  background: var(--blue);
+  color: white;
+  padding: 15px 25px;
+  border-radius: 12px;
+  margin-top: 15px;
+}
+
+@media (max-width: 600px) {
+  .brand {
+    font-size: 17px;
+  }
+
+  .nav-actions {
+    gap: 10px;
+    font-size: 13px;
+  }
+}
+
+
+/* SPLITMATE — BILL SPLITTER */
+
+.split-page {
+  padding: 55px 0 90px;
+}
+
+.page-heading {
+  margin-bottom: 32px;
+}
+
+.section-label {
+  color: #0077B6;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.page-heading h1 {
+  font-size: clamp(34px, 5vw, 50px);
+  margin: 12px 0;
+}
+
+.page-heading p {
+  color: #788395;
+  line-height: 1.7;
+}
+
+.split-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.split-main {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+
+.panel {
+  background: var(--card);
+  border: 1px solid #8883;
+  border-radius: 20px;
+  padding: 25px;
+  min-width: 0;
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text);
+  font-size: 21px;
+  margin: 0 0 24px;
+}
+
+.panel-title svg {
+  color: #0077B6;
+}
+
+/* FRIENDS */
+
+.friend-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.friend-chip {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 12px 6px 6px;
+  border: 1px solid #8884;
+  border-radius: 30px;
+  font-size: 14px;
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.avatar-0 { background: #CAF0F8; color: #03045E; }
+.avatar-1 { background: #FFE1A8; color: #472D30; }
+.avatar-2 { background: #C9CBA3; color: #34452B; }
+.avatar-3 { background: #F6C8BF; color: #723D46; }
+.avatar-4 { background: #90E0EF; color: #03045E; }
+
+.friend-chip button {
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 23px;
+}
+
+.add-row input {
+  flex: 1 1 135px;
+  min-width: 0;
+}
+
+.add-row input,
+.item-controls input,
+.item-controls select {
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #8885;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.small-button {
+  background: #0077B6;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 17px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.small-button:hover {
+  background: #005D91;
+}
+
+/* ITEM CATEGORIES */
+
+.item-legend {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+
+.item-legend span {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 12px;
+  border-radius: 20px;
+}
+
+.legend-individual {
+  background: #F6C8BF;
+  color: #723D46;
+}
+
+.legend-common {
+  background: #CAF0F8;
+  color: #03045E;
+}
+
+.legend-shared {
+  background: #E7EACA;
+  color: #425331;
+}
+
+.bill-item {
+  border: 1px solid #8883;
+  border-left: 5px solid transparent;
+  border-radius: 15px;
+  padding: 19px;
+  margin-bottom: 16px;
+}
+
+.item-individual {
+  border-left-color: #E26D5C;
+}
+
+.item-common {
+  border-left-color: #00B4D8;
+}
+
+.item-shared {
+  border-left-color: #C9CBA3;
+}
+
+.item-heading,
+.item-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.item-heading {
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.item-name-row svg {
+  color: #0077B6;
+}
+
+.delete-button {
+  border: none;
+  background: #FBE1DB;
+  color: #A93E33;
+  border-radius: 9px;
+  padding: 9px;
+  display: flex;
+  cursor: pointer;
+}
+
+.item-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.item-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.common-notice {
+  background: #CAF0F8;
+  color: #03045E;
+  padding: 13px;
+  border-radius: 10px;
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.selection-area {
+  margin-top: 20px;
+}
+
+.selection-area p {
+  font-size: 13px;
+  margin-bottom: 12px;
+  color: var(--text);
+}
+
+.selection-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.person-option {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #8884;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.person-option input {
+  accent-color: #0077B6;
+}
+
+/* SUMMARY */
+
+.summary-panel {
+  position: sticky;
+  top: 100px;
+}
+
+.summary-total {
+  background: linear-gradient(135deg, #0077B6, #00B4D8);
+  border-radius: 16px;
+  color: white;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.summary-total span {
+  font-size: 13px;
+}
+
+.summary-total strong {
+  font-size: 34px;
+}
+
+.summary-total small {
+  opacity: .85;
+}
+
+.summary-list {
+  margin-top: 20px;
+}
+
+.summary-person {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #8883;
+  padding: 14px 0;
+}
+
+.summary-person-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.summary-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 15px;
+  margin-top: 22px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.summary-note svg {
+  color: #00B4D8;
+  flex-shrink: 0;
+}
+
+.validation-message {
+  color: #E26D5C;
+  line-height: 1.6;
+  font-size: 13px;
+  margin-top: 20px;
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 900px) {
+  .split-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-panel {
+    position: static;
+  }
+}
+
+@media (max-width: 600px) {
+  .split-page {
+    padding: 35px 0 65px;
+  }
+
+  .panel {
+    padding: 17px;
+  }
+
+  .item-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .add-row .small-button {
+    width: 100%;
+  }
+
+  .summary-total strong {
+    font-size: 30px;
+  }
+}
+
+
+
+/* SPLITMATE RECEIPT SCANNER */
+
+.scan-page {
+  max-width: 850px;
+  margin: 0 auto;
+  padding: 55px 0 90px;
+}
+
+.scan-header {
+  text-align: center;
+  margin-bottom: 35px;
+}
+
+.scan-header h1 {
+  font-size: clamp(30px, 5vw, 46px);
+  margin: 14px 0;
+}
+
+.scan-header p {
+  color: #8993a3;
+  line-height: 1.7;
+}
+
+.scanner-card {
+  background: var(--card);
+  border: 1px solid #8884;
+  border-radius: 24px;
+  padding: 35px;
+}
+
+.scanner-empty {
+  border: 2px dashed #00B4D8;
+  border-radius: 20px;
+  padding: 55px 25px;
+  text-align: center;
+}
+
+.scanner-icon {
+  width: 90px;
+  height: 90px;
+  border-radius: 25px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 25px;
+  background: #CAF0F8;
+  color: #0077B6;
+}
+
+.scanner-empty h2 {
+  margin-bottom: 12px;
+}
+
+.scanner-empty p {
+  color: #8993a3;
+  margin-bottom: 30px;
+}
+
+.scanner-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.camera-button,
+.upload-button,
+.scan-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 12px;
+  padding: 15px 25px;
+  font-weight: 700;
+  cursor: pointer;
+  font: inherit;
+}
+
+.camera-button,
+.scan-button {
+  background: #0077B6;
+  color: white;
+  border: none;
+}
+
+.upload-button {
+  background: transparent;
+  border: 2px solid #0077B6;
+  color: #0077B6;
+}
+
+.scanner-hint {
+  margin-top: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #8993a3;
+  font-size: 13px;
+}
+
+.scanner-preview {
+  text-align: center;
+}
+
+.preview-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+}
+
+.remove-image {
+  border: none;
+  border-radius: 10px;
+  padding: 10px;
+  background: #FBE1DB;
+  color: #A93E33;
+  cursor: pointer;
+}
+
+.receipt-image {
+  max-width: 100%;
+  max-height: 550px;
+  object-fit: contain;
+  border-radius: 12px;
+}
+
+.upload-success {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #008866;
+  margin: 20px 0;
+}
+
+.scan-button {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.scanner-error {
+  color: #E26D5C;
+  text-align: center;
+  margin-top: 20px;
+}
+
+.scanner-tips {
+  background: var(--card);
+  border: 1px solid #8883;
+  border-radius: 18px;
+  padding: 25px;
+  margin-top: 25px;
+}
+
+.scanner-tips h3 {
+  margin-bottom: 15px;
+}
+
+.scanner-tips p {
+  color: #8993a3;
+  margin: 9px 0;
+}
+
+@media (max-width: 600px) {
+  .scanner-card {
+    padding: 15px;
+  }
+
+  .scanner-empty {
+    padding: 35px 15px;
+  }
+
+  .scanner-actions {
+    flex-direction: column;
+  }
+
+  .camera-button,
+  .upload-button {
+    width: 100%;
+  }
+}
+
+
+
+/* =====================================
+   SPLITMATE - OCR SCAN RESULTS
+===================================== */
+
+.ocr-results {
+  margin: 32px auto;
+  padding: 28px;
+  width: 100%;
+  max-width: 900px;
+  background: var(--card-bg, rgba(127, 127, 127, 0.06));
+  border: 1px solid rgba(127, 127, 127, 0.2);
+  border-radius: 22px;
+  color: inherit;
+}
+
+.ocr-results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 26px;
+}
+
+.ocr-results-header h2 {
+  font-size: clamp(22px, 3vw, 28px);
+  margin: 8px 0;
+}
+
+.ocr-results-header p {
+  opacity: 0.7;
+  font-size: 14px;
+}
+
+.ocr-success {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #22c55e;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ocr-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ocr-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid rgba(127, 127, 127, 0.15);
+  border-radius: 14px;
+  background: rgba(127, 127, 127, 0.05);
+}
+
+.ocr-item-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.ocr-item-number {
+  color: #0077b6;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ocr-item-info h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 5px;
+  overflow-wrap: anywhere;
+}
+
+.ocr-item-info p {
+  margin: 0;
+  opacity: 0.65;
+  font-size: 13px;
+}
+
+.ocr-item-price {
+  color: #e26d5c;
+  font-size: 18px;
+  white-space: nowrap;
+}
+
+.ocr-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 20px 4px;
+  border-top: 1px solid rgba(127, 127, 127, 0.25);
+  font-weight: 600;
+}
+
+.ocr-total strong {
+  font-size: 26px;
+  color: #e26d5c;
+}
+
+.ocr-review-note {
+  font-size: 13px;
+  opacity: 0.7;
+  line-height: 1.6;
+}
+
+.ocr-empty {
+  text-align: center;
+  padding: 28px;
+  opacity: 0.8;
+}
+
+.ocr-empty h3 {
+  margin: 12px 0;
+}
+
+.ocr-raw-details {
+  margin-top: 24px;
+  border-top: 1px solid rgba(127, 127, 127, 0.2);
+  padding-top: 18px;
+}
+
+.ocr-raw-details summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ocr-raw-details pre {
+  margin-top: 14px;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(127, 127, 127, 0.08);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.scan-spinner {
+  animation: scan-spin 1s linear infinite;
+}
+
+@keyframes scan-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.scan-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .ocr-results {
+    padding: 18px;
+    border-radius: 16px;
+  }
+
+  .ocr-item {
+    padding: 14px;
+  }
+
+  .ocr-item-info h3 {
+    font-size: 14px;
+  }
+
+  .ocr-item-price {
+    font-size: 15px;
+  }
+
+  .ocr-total strong {
+    font-size: 22px;
+  }
+}
+
+
+/* SplitMate receipt scanner */
+
+.scan-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.scan-button:not(:disabled):hover {
+  transform: translateY(-2px);
+}
+
+.scan-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.scan-spinner {
+  animation: scan-spin 1s linear infinite;
+}
+
+@keyframes scan-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.scanner-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+  color: #e26d5c;
+}
+
+/* Scan Bill navbar icon alignment */
+
+.nav-actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+/* Mobile navbar */
+@media (max-width: 600px) {
+  .nav-inner {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .nav-actions a {
+    font-size: 13px;
+  }
+}
+
+
+
+/* =========================================
+   SPLITMATE - EDITABLE RECEIPT REVIEW
+   ========================================= */
+
+.review-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  margin: 20px 0;
+  border-radius: 14px;
+  background: rgba(226, 109, 92, 0.10);
+  border: 1px solid rgba(226, 109, 92, 0.25);
+  color: inherit;
+}
+
+.review-warning svg {
+  color: #e26d5c;
+  flex-shrink: 0;
+}
+
+.review-warning p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.review-items {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.review-item {
+  padding: 20px;
+  border-radius: 18px;
+  background: rgba(0, 180, 216, 0.045);
+  border: 1px solid rgba(0, 119, 182, 0.16);
+}
+
+.review-item-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.review-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  background: transparent;
+  border: 1px solid rgba(226, 109, 92, 0.3);
+  color: #e26d5c;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.review-delete:hover {
+  background: rgba(226, 109, 92, 0.1);
+}
+
+.review-item-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) 90px minmax(120px, 1fr);
+  gap: 12px;
+}
+
+.review-item-fields label,
+.review-subtotal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 0;
+}
+
+.review-item-fields input,
+.review-subtotal-field input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid rgba(0, 119, 182, 0.25);
+  border-radius: 10px;
+  background: var(--card-bg, transparent);
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.review-item-fields input:focus,
+.review-subtotal-field input:focus {
+  border-color: #00b4d8;
+  box-shadow: 0 0 0 3px rgba(0, 180, 216, 0.12);
+}
+
+.review-item-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 0 0;
+  color: #e26d5c;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.review-item-alert svg {
+  flex-shrink: 0;
+}
+
+.review-add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 18px;
+  padding: 12px 18px;
+  border: 1px solid #0077b6;
+  border-radius: 12px;
+  background: transparent;
+  color: #0077b6;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.review-add-button:hover {
+  background: rgba(0, 119, 182, 0.08);
+}
+
+.review-summary {
+  margin-top: 26px;
+  padding: 22px;
+  border-radius: 18px;
+  border: 1px solid rgba(0, 119, 182, 0.18);
+  background: rgba(0, 180, 216, 0.05);
+}
+
+.review-summary h3 {
+  margin: 0 0 20px;
+}
+
+.review-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.review-summary-row strong {
+  font-size: 18px;
+}
+
+.review-subtotal-field {
+  margin: 16px 0;
+}
+
+.review-match,
+.review-mismatch {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 16px;
+}
+
+.review-match {
+  color: #16885b;
+}
+
+.review-mismatch {
+  color: #e26d5c;
+}
+
+.review-small-note {
+  font-size: 13px;
+  line-height: 1.6;
+  opacity: 0.75;
+  margin-top: 14px;
+}
+
+.review-confirm-section {
+  margin-top: 24px;
+}
+
+.review-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.review-checkbox input {
+  margin-top: 4px;
+  width: 18px;
+  height: 18px;
+  accent-color: #0077b6;
+  flex-shrink: 0;
+}
+
+.review-save-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 15px;
+  margin-top: 20px;
+  background: #0077b6;
+  color: white;
+  border: none;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.review-save-button:hover:not(:disabled) {
+  background: #005f91;
+}
+
+.review-save-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.review-saved {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(22, 136, 91, 0.1);
+  color: #16885b;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Dark theme */
+[data-theme="dark"] .review-item,
+[data-theme="dark"] .review-summary {
+  background: rgba(0, 180, 216, 0.07);
+  border-color: rgba(144, 224, 239, 0.2);
+}
+
+[data-theme="dark"] .review-item-fields input,
+[data-theme="dark"] .review-subtotal-field input {
+  background: #181b24;
+  color: #ffffff;
+  border-color: rgba(144, 224, 239, 0.25);
+}
+
+[data-theme="dark"] .review-add-button {
+  color: #90e0ef;
+  border-color: #00b4d8;
+}
+
+[data-theme="dark"] .review-match,
+[data-theme="dark"] .review-saved {
+  color: #7de0ad;
+}
+
+/* Mobile */
+@media (max-width: 650px) {
+  .review-item {
+    padding: 15px;
+  }
+
+  .review-item-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .review-name-field {
+    grid-column: 1 / -1;
+  }
+
+  .review-summary {
+    padding: 16px;
+  }
+
+  .review-summary-row strong {
+    font-size: 16px;
+  }
+
+  .review-add-button {
+    width: 100%;
+  }
+}
+
+
+
+
+/* SplitMate — Tax-inclusive receipt review */
+
+.review-tax-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.review-tax-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: inherit;
+}
+
+.review-tax-field input {
+  width: 100%;
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid var(--border-color, #9ca3af);
+  border-radius: 12px;
+  background: var(--card-bg, transparent);
+  color: inherit;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.review-tax-field input:focus {
+  outline: 2px solid #00b4d8;
+  outline-offset: 2px;
+}
+
+.review-grand-total {
+  margin: 22px 0;
+  padding: 18px 0;
+  border-top: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  font-size: 18px;
+}
+
+.review-grand-total strong {
+  color: #0077b6;
+  font-size: 23px;
+}
+
+.review-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+@media (max-width: 600px) {
+  .review-tax-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .review-grand-total strong {
+    font-size: 20px;
+  }
+}
+
+
+
+/* SplitMate — quantity allocation */
+
+.quantity-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.quantity-person {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-color, #9ca3af);
+  border-radius: 12px;
+  color: inherit;
+}
+
+.quantity-person span {
+  overflow-wrap: anywhere;
+}
+
+.quantity-person input {
+  width: 75px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--border-color, #9ca3af);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+@media (max-width: 600px) {
+  .quantity-list {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-person {
+    gap: 12px;
+  }
+}
+
+
+
+/* SplitMate — Settlement */
+
+.settlement-payment-list {
+  display: grid;
+  gap: 14px;
+  margin: 20px 0;
+}
+
+.settlement-payment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--border-color, #64748b);
+  border-radius: 14px;
+}
+
+.settlement-payment-row .summary-person-name {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settlement-payment-row small {
+  display: block;
+  margin-top: 4px;
+  opacity: 0.7;
+}
+
+.settlement-payment-row label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.settlement-payment-row input {
+  width: 140px;
+  padding: 11px;
+  border: 1px solid var(--border-color, #64748b);
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.settlement-transfer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border-color, #64748b);
+}
+
+.settlement-transfer-route {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.settlement-amount {
+  font-size: 18px;
+}
+
+.settlement-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+@media (max-width: 600px) {
+  .settlement-payment-row {
+    align-items: stretch;
+  }
+
+  .settlement-payment-row label,
+  .settlement-payment-row input {
+    width: 100%;
+  }
+}
+
+
+
+/* =====================================
+   SPLITMATE — PAYMENT TRACKING
+===================================== */
+
+.settlement-tracked-transfer {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  padding: 16px 0;
+}
+
+.settlement-transfer-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settlement-status-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  align-self: flex-end;
+
+  min-width: 112px;
+  padding: 9px 15px;
+
+  border: 1px solid transparent;
+  border-radius: 10px;
+
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.settlement-status-button:hover {
+  transform: translateY(-1px);
+}
+
+.settlement-status-button.is-pending {
+  color: #b45309;
+  background: #fef3c7;
+  border-color: #fcd34d;
+}
+
+.settlement-status-button.is-paid {
+  color: #047857;
+  background: #d1fae5;
+  border-color: #6ee7b7;
+}
+
+.settlement-tracking {
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid var(
+    --border-color,
+    rgba(128, 128, 128, 0.25)
+  );
+}
+
+.settlement-tracking-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.settlement-tracking-heading h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.settlement-tracking-heading span {
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.settlement-progress-track {
+  width: 100%;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(128, 128, 128, 0.22);
+}
+
+.settlement-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    #00b4d8,
+    #10b981
+  );
+  transition: width 0.3s ease;
+}
+
+.settlement-tracking-totals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.settlement-tracking-card {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+  padding: 16px;
+  border-radius: 13px;
+
+  background: rgba(128, 128, 128, 0.1);
+  border: 1px solid rgba(128, 128, 128, 0.14);
+}
+
+.settlement-tracking-card span {
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.settlement-tracking-card strong {
+  font-size: clamp(16px, 2vw, 22px);
+  overflow-wrap: anywhere;
+}
+
+.settlement-received {
+  color: #10b981;
+}
+
+@media (max-width: 480px) {
+  .settlement-tracking-totals {
+    grid-template-columns: 1fr;
+  }
+
+  .settlement-transfer-info {
+    flex-wrap: wrap;
+  }
+}
+
+
+
+/* =========================================
+   SPLITMATE — BILL HISTORY
+========================================= */
+
+.history-page {
+  padding-bottom: 50px;
+}
+
+.history-heading-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.history-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin: 22px 0;
+}
+
+.history-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 20px;
+  border-radius: 16px;
+  background: rgba(128, 128, 128, 0.09);
+  border: 1px solid rgba(128, 128, 128, 0.16);
+}
+
+.history-stat span {
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.history-stat strong {
+  font-size: clamp(18px, 2vw, 26px);
+  overflow-wrap: anywhere;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.history-bill {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid rgba(128, 128, 128, 0.2);
+  border-radius: 16px;
+  background: rgba(128, 128, 128, 0.045);
+}
+
+.history-bill-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  color: #0077b6;
+  background: rgba(0, 180, 216, 0.13);
+}
+
+.history-bill-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+}
+
+.history-bill-content h3 {
+  margin: 0;
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+
+.history-bill-content > span:not(.history-status) {
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.history-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.history-status.settled {
+  color: #047857;
+  background: #d1fae5;
+}
+
+.history-status.pending {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.history-bill-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.history-bill-actions > strong {
+  font-size: 18px;
+}
+
+.history-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.history-delete {
+  display: grid;
+  place-items: center;
+  width: 39px;
+  height: 39px;
+  border-radius: 10px;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.09);
+  color: #ef4444;
+  cursor: pointer;
+}
+
+.history-delete:hover {
+  background: rgba(239, 68, 68, 0.18);
+}
+
+.history-delete:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.history-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  padding: 48px 16px;
+}
+
+.history-empty h3,
+.history-empty p {
+  margin: 0;
+}
+
+.history-empty p {
+  opacity: 0.7;
+}
+
+.history-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 18px 0 26px;
+}
+
+.history-detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.18);
+}
+
+.history-save-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  margin: 24px 0;
+  padding: 20px;
+  border: 1px solid rgba(0, 180, 216, 0.25);
+  border-radius: 16px;
+  background: rgba(0, 180, 216, 0.055);
+}
+
+.history-save-panel h3,
+.history-save-panel p {
+  margin: 0;
+}
+
+.history-save-panel label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.history-save-panel input {
+  width: 100%;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.history-save-panel .small-button {
+  align-self: flex-start;
+}
+
+@media (max-width: 650px) {
+  .history-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .history-bill {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .history-bill-actions {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}

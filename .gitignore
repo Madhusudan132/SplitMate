@@ -1,0 +1,39 @@
+
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Django local database
+db.sqlite3
+db.sqlite3-journal
+*.sqlite3
+
+# Django secrets and environment variables
+.env
+.env.*
+!.env.example
+
+# React / Vite
+node_modules/
+dist/
+.vite/
+
+# Logs
+*.log
+
+# Editor files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Uploaded files
+backend/media/
