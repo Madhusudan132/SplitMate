@@ -1,5 +1,7 @@
 
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 import {
   Camera,
   Upload,
@@ -15,7 +17,9 @@ import {
   Save,
 } from "lucide-react";
 
-const API_URL = "http://127.0.0.1:8000/api/scan-receipt/";
+const API_URL =
+  "http://127.0.0.1:8000/api/scan-receipt/";
+
 const STORAGE_KEY = "splitmate_reviewed_receipt";
 
 const CHARGES = [
@@ -36,33 +40,49 @@ const emptyCharges = {
   round_off: "0.00",
 };
 
+// Convert rupees to integer paise
 function toPaise(value, allowNegative = false) {
   const text = String(value ?? "").trim();
+
   const pattern = allowNegative
     ? /^-?\d+(?:\.\d{1,2})?$/
     : /^\d+(?:\.\d{1,2})?$/;
 
-  if (!pattern.test(text)) return null;
+  if (!pattern.test(text)) {
+    return null;
+  }
 
   const negative = text.startsWith("-");
-  const unsigned = negative ? text.slice(1) : text;
-  const [rupees, decimals = ""] = unsigned.split(".");
+
+  const unsigned = negative
+    ? text.slice(1)
+    : text;
+
+  const [rupees, decimals = ""] =
+    unsigned.split(".");
 
   const result =
     Number(rupees) * 100 +
     Number(decimals.padEnd(2, "0"));
 
-  if (!Number.isSafeInteger(result)) return null;
+  if (!Number.isSafeInteger(result)) {
+    return null;
+  }
 
   return negative ? -result : result;
 }
 
+// Convert paise to rupee string
 function asAmount(paise) {
   return (paise / 100).toFixed(2);
 }
 
+// Display formatted money
 function money(paise) {
-  if (paise === null || !Number.isFinite(paise)) {
+  if (
+    paise === null ||
+    !Number.isFinite(paise)
+  ) {
     return "—";
   }
 
@@ -76,30 +96,41 @@ function money(paise) {
   })}`;
 }
 
+// Create an editable receipt item
 function makeItem(item = {}) {
   return {
     id:
-      typeof crypto !== "undefined" && crypto.randomUUID
+      typeof crypto !== "undefined" &&
+      crypto.randomUUID
         ? crypto.randomUUID()
         : `${Date.now()}-${Math.random()}`,
+
     name: String(item.name ?? ""),
+
     quantity: String(item.quantity ?? 1),
+
     total_price:
       item.total_price == null
         ? ""
         : String(item.total_price),
+
     raw_price: item.raw_price ?? "",
+
     needs_review: Boolean(item.needs_review),
   };
 }
 
+// Read initial taxes from OCR response
 function getInitialCharges(summary = {}) {
   const result = { ...emptyCharges };
 
   for (const { key } of CHARGES) {
     const value = summary[key];
 
-    if (value !== null && value !== undefined) {
+    if (
+      value !== null &&
+      value !== undefined
+    ) {
       result[key] = String(value);
     }
   }
@@ -108,34 +139,55 @@ function getInitialCharges(summary = {}) {
 }
 
 export default function ScanBill() {
+  // NEW: Navigation
+  const navigate = useNavigate();
+
   const cameraRef = useRef(null);
   const uploadRef = useRef(null);
 
+  // Image states
   const [image, setImage] = useState(null);
   const [file, setFile] = useState(null);
+
   const [error, setError] = useState("");
   const [scanning, setScanning] = useState(false);
 
+  // OCR result
   const [scanResult, setScanResult] = useState(null);
+
+  // Editable food items
   const [reviewItems, setReviewItems] = useState([]);
 
-  const [expectedSubtotal, setExpectedSubtotal] =
-    useState("");
+  // Receipt summary
+  const [
+    expectedSubtotal,
+    setExpectedSubtotal,
+  ] = useState("");
 
   const [charges, setCharges] = useState({
     ...emptyCharges,
   });
 
-  const [expectedTotal, setExpectedTotal] = useState("");
+  const [
+    expectedTotal,
+    setExpectedTotal,
+  ] = useState("");
+
+  // User confirmation
   const [confirmed, setConfirmed] = useState(false);
+
   const [saved, setSaved] = useState(false);
 
+  // Clean up temporary image URL
   useEffect(() => {
     return () => {
-      if (image) URL.revokeObjectURL(image);
+      if (image) {
+        URL.revokeObjectURL(image);
+      }
     };
   }, [image]);
 
+  // Reset receipt review
   function resetReview() {
     setScanResult(null);
     setReviewItems([]);
@@ -146,13 +198,16 @@ export default function ScanBill() {
     setSaved(false);
   }
 
+  // Require reconfirmation after any edit
   function invalidateConfirmation() {
     setConfirmed(false);
     setSaved(false);
   }
 
+  // Select receipt image
   function handleImage(event) {
     const selected = event.target.files?.[0];
+
     event.target.value = "";
 
     if (!selected) return;
@@ -163,53 +218,73 @@ export default function ScanBill() {
     }
 
     if (selected.size > 10 * 1024 * 1024) {
-      setError("Image must be smaller than 10 MB.");
+      setError(
+        "Image must be smaller than 10 MB."
+      );
       return;
     }
 
     resetReview();
     setError("");
+
     setFile(selected);
-    setImage(URL.createObjectURL(selected));
+
+    setImage(
+      URL.createObjectURL(selected)
+    );
   }
 
+  // Remove selected receipt
   function removeImage() {
     if (scanning) return;
 
     setFile(null);
     setImage(null);
     setError("");
+
     resetReview();
   }
 
+  // Scan receipt using Django OCR API
   async function scanReceipt() {
     if (!file || scanning) {
       if (!file) {
-        setError("Please select a receipt first.");
+        setError(
+          "Please select a receipt first."
+        );
       }
+
       return;
     }
 
     setScanning(true);
     setError("");
+
     resetReview();
 
     const formData = new FormData();
+
     formData.append("image", file);
 
     try {
-      const response = await fetch(API_URL, {
-        method: "POST",
-        body: formData,
-      });
+      const response = await fetch(
+        API_URL,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
 
       const data = await response.json();
 
-      if (!response.ok || data.success === false) {
+      if (
+        !response.ok ||
+        data.success === false
+      ) {
         throw new Error(
           data.error ||
-            data.message ||
-            "Failed to scan the receipt."
+          data.message ||
+          "Failed to scan the receipt."
         );
       }
 
@@ -219,24 +294,28 @@ export default function ScanBill() {
         ? data.items
         : [];
 
-      setReviewItems(items.map(makeItem));
+      setReviewItems(
+        items.map(makeItem)
+      );
 
       const summary = data.summary ?? {};
 
-      // The derived subtotal is only a starting
-      // value. The user must verify it.
+      // The OCR subtotal is a starting value
+      // and must be verified by the user.
       setExpectedSubtotal(
         String(
           summary.subtotal ??
-            data.validation?.expected_amount ??
-            ""
+          data.validation?.expected_amount ??
+          ""
         )
       );
 
-      setCharges(getInitialCharges(summary));
+      setCharges(
+        getInitialCharges(summary)
+      );
 
-      // Never substitute the food subtotal for
-      // an unreadable printed grand total.
+      // Never assume the subtotal is
+      // the final restaurant bill amount.
       setExpectedTotal(
         summary.total == null
           ? ""
@@ -246,18 +325,23 @@ export default function ScanBill() {
       setError(
         err instanceof TypeError
           ? "Cannot connect to Django. Check the backend."
-          : err.message || "Unable to scan receipt."
+          : err.message ||
+            "Unable to scan receipt."
       );
     } finally {
       setScanning(false);
     }
   }
 
+  // Update food item
   function updateItem(id, field, value) {
     setReviewItems((current) =>
       current.map((item) =>
         item.id === id
-          ? { ...item, [field]: value }
+          ? {
+              ...item,
+              [field]: value,
+            }
           : item
       )
     );
@@ -265,6 +349,7 @@ export default function ScanBill() {
     invalidateConfirmation();
   }
 
+  // Add food item manually
   function addItem() {
     setReviewItems((current) => [
       ...current,
@@ -279,14 +364,18 @@ export default function ScanBill() {
     invalidateConfirmation();
   }
 
+  // Remove food item
   function removeItem(id) {
     setReviewItems((current) =>
-      current.filter((item) => item.id !== id)
+      current.filter(
+        (item) => item.id !== id
+      )
     );
 
     invalidateConfirmation();
   }
 
+  // Update taxes or adjustments
   function updateCharge(key, value) {
     setCharges((current) => ({
       ...current,
@@ -296,68 +385,99 @@ export default function ScanBill() {
     invalidateConfirmation();
   }
 
-  const itemProblems = reviewItems.map((item) => {
-    const problems = [];
+  // Validate every food item
+  const itemProblems = reviewItems.map(
+    (item) => {
+      const problems = [];
 
-    if (!item.name.trim()) {
-      problems.push("Enter a food name.");
+      if (!item.name.trim()) {
+        problems.push(
+          "Enter a food name."
+        );
+      }
+
+      const quantity = Number(
+        item.quantity
+      );
+
+      if (
+        !/^\d+$/.test(item.quantity) ||
+        !Number.isSafeInteger(quantity) ||
+        quantity < 1
+      ) {
+        problems.push(
+          "Enter a valid quantity."
+        );
+      }
+
+      if (
+        toPaise(item.total_price) === null
+      ) {
+        problems.push(
+          "Enter a valid line total."
+        );
+      }
+
+      return problems;
     }
-
-    const quantity = Number(item.quantity);
-
-    if (
-      !/^\d+$/.test(item.quantity) ||
-      !Number.isSafeInteger(quantity) ||
-      quantity < 1
-    ) {
-      problems.push("Enter a valid quantity.");
-    }
-
-    if (toPaise(item.total_price) === null) {
-      problems.push("Enter a valid line total.");
-    }
-
-    return problems;
-  });
+  );
 
   const allItemsValid =
     reviewItems.length > 0 &&
-    itemProblems.every((problems) => problems.length === 0);
+    itemProblems.every(
+      (problems) => problems.length === 0
+    );
 
-  // total_price is already the line total.
+  // Food subtotal
+  // total_price is already the full line total.
   // Do not multiply by quantity again.
   const foodSubtotal = reviewItems.reduce(
-    (sum, item) => sum + (toPaise(item.total_price) ?? 0),
+    (sum, item) =>
+      sum +
+      (toPaise(item.total_price) ?? 0),
     0
   );
 
-  const printedSubtotal = toPaise(expectedSubtotal);
+  const printedSubtotal = toPaise(
+    expectedSubtotal
+  );
 
   const subtotalMatches =
     allItemsValid &&
     printedSubtotal !== null &&
     foodSubtotal === printedSubtotal;
 
+  // Convert taxes and adjustments to paise
   const chargePaise = Object.fromEntries(
     CHARGES.map(({ key }) => [
       key,
-      toPaise(charges[key], key === "round_off"),
+      toPaise(
+        charges[key],
+        key === "round_off"
+      ),
     ])
   );
 
-  const chargesValid = Object.values(chargePaise).every(
-    (value) => value !== null
-  );
+  const chargesValid =
+    Object.values(chargePaise).every(
+      (value) => value !== null
+    );
 
   const taxes =
     (chargePaise.cgst ?? 0) +
     (chargePaise.sgst ?? 0) +
     (chargePaise.igst ?? 0);
 
-  const serviceCharge = chargePaise.service_charge ?? 0;
-  const discount = chargePaise.discount ?? 0;
-  const roundOff = chargePaise.round_off ?? 0;
+  const serviceCharge =
+    chargePaise.service_charge ?? 0;
 
+  const discount =
+    chargePaise.discount ?? 0;
+
+  const roundOff =
+    chargePaise.round_off ?? 0;
+
+  // Calculate final payable amount
   const calculatedTotal =
     foodSubtotal +
     taxes +
@@ -365,7 +485,9 @@ export default function ScanBill() {
     discount +
     roundOff;
 
-  const printedTotal = toPaise(expectedTotal);
+  const printedTotal = toPaise(
+    expectedTotal
+  );
 
   const totalMatches =
     allItemsValid &&
@@ -374,42 +496,97 @@ export default function ScanBill() {
     calculatedTotal >= 0 &&
     calculatedTotal === printedTotal;
 
+  // Confirmation is enabled only when
+  // all receipt calculations match.
   const canConfirm =
     !scanning &&
     subtotalMatches &&
     totalMatches &&
     confirmed;
 
+  // =================================================
+  // CONFIRM RECEIPT AND REDIRECT TO SPLIT BILL
+  // =================================================
+
   function saveReviewedReceipt() {
-    if (!canConfirm) return;
+    if (!canConfirm) {
+      setError(
+        "Please verify all receipt details and confirm the checkbox."
+      );
+      return;
+    }
 
-    const reviewedItems = reviewItems.map((item) => ({
-      name: item.name.trim(),
-      quantity: Number(item.quantity),
-      total_price: asAmount(toPaise(item.total_price)),
-      needs_review: false,
-    }));
+    // Save verified food items
+    const reviewedItems = reviewItems.map(
+      (item) => ({
+        name: item.name.trim(),
 
+        quantity: Number(
+          item.quantity
+        ),
+
+        total_price: asAmount(
+          toPaise(item.total_price)
+        ),
+
+        needs_review: false,
+      })
+    );
+
+    // Save verified taxes and totals
     const reviewedSummary = {
-      subtotal: asAmount(foodSubtotal),
-      cgst: asAmount(chargePaise.cgst),
-      sgst: asAmount(chargePaise.sgst),
-      igst: asAmount(chargePaise.igst),
-      service_charge: asAmount(serviceCharge),
-      discount: asAmount(discount),
-      round_off: asAmount(roundOff),
-      total: asAmount(calculatedTotal),
+      subtotal: asAmount(
+        foodSubtotal
+      ),
+
+      cgst: asAmount(
+        chargePaise.cgst
+      ),
+
+      sgst: asAmount(
+        chargePaise.sgst
+      ),
+
+      igst: asAmount(
+        chargePaise.igst
+      ),
+
+      service_charge: asAmount(
+        serviceCharge
+      ),
+
+      discount: asAmount(
+        discount
+      ),
+
+      round_off: asAmount(
+        roundOff
+      ),
+
+      total: asAmount(
+        calculatedTotal
+      ),
     };
 
+    // Matches the data structure expected
+    // by the SplitBill.jsx page.
     const receipt = {
       items: reviewedItems,
-      subtotal: reviewedSummary.subtotal,
+
+      subtotal:
+        reviewedSummary.subtotal,
+
       summary: reviewedSummary,
-      grand_total: reviewedSummary.total,
-      confirmed_at: new Date().toISOString(),
+
+      grand_total:
+        reviewedSummary.total,
+
+      confirmed_at:
+        new Date().toISOString(),
     };
 
     try {
+      // Step 1: Store the reviewed receipt
       sessionStorage.setItem(
         STORAGE_KEY,
         JSON.stringify(receipt)
@@ -417,47 +594,70 @@ export default function ScanBill() {
 
       setSaved(true);
       setError("");
-    } catch {
+
+      // Step 2: Automatically open Split Bill
+      navigate("/split");
+
+    } catch (err) {
       setSaved(false);
+
       setError(
         "Unable to save the reviewed receipt in this browser."
       );
     }
   }
 
+  // =================================================
+  // UI
+  // =================================================
+
   return (
     <div className="scan-page">
+
+      {/* PAGE HEADER */}
       <div className="scan-header">
         <span className="section-label">
           SMART RECEIPT SCANNER
         </span>
 
-        <h1>Scan Your Restaurant Bill</h1>
+        <h1>
+          Scan Your Restaurant Bill
+        </h1>
 
         <p>
-          Upload your receipt, review food items and taxes,
-          then confirm the final amount before splitting.
+          Upload your receipt, review food items
+          and taxes, then confirm the final
+          amount before splitting.
         </p>
       </div>
 
+      {/* RECEIPT UPLOAD */}
       <div className="scanner-card">
+
         {!image ? (
           <div className="scanner-empty">
+
             <div className="scanner-icon">
               <ScanText size={45} />
             </div>
 
-            <h2>Upload Your Receipt</h2>
+            <h2>
+              Upload Your Receipt
+            </h2>
 
             <p>
-              Capture a clear photo of your restaurant bill.
+              Capture a clear photo of your
+              restaurant bill.
             </p>
 
             <div className="scanner-actions">
+
               <button
                 type="button"
                 className="camera-button"
-                onClick={() => cameraRef.current?.click()}
+                onClick={() =>
+                  cameraRef.current?.click()
+                }
                 disabled={scanning}
               >
                 <Camera size={20} />
@@ -467,23 +667,31 @@ export default function ScanBill() {
               <button
                 type="button"
                 className="upload-button"
-                onClick={() => uploadRef.current?.click()}
+                onClick={() =>
+                  uploadRef.current?.click()
+                }
                 disabled={scanning}
               >
                 <Upload size={20} />
                 Upload Image
               </button>
+
             </div>
 
             <div className="scanner-hint">
               <ImagePlus size={18} />
-              Supports JPG, PNG and browser-supported images
+              Supports JPG, PNG and
+              browser-supported images
             </div>
+
           </div>
         ) : (
           <div className="scanner-preview">
+
             <div className="preview-heading">
-              <h2>Receipt Preview</h2>
+              <h2>
+                Receipt Preview
+              </h2>
 
               <button
                 type="button"
@@ -506,9 +714,11 @@ export default function ScanBill() {
               <CheckCircle2 size={18} />
               Receipt image selected
             </div>
+
           </div>
         )}
 
+        {/* SCAN BUTTON */}
         <button
           type="button"
           className="scan-button"
@@ -530,8 +740,13 @@ export default function ScanBill() {
             fontSize: "16px",
             fontWeight: "600",
             cursor:
-              !file || scanning ? "not-allowed" : "pointer",
-            opacity: !file || scanning ? 0.55 : 1,
+              !file || scanning
+                ? "not-allowed"
+                : "pointer",
+            opacity:
+              !file || scanning
+                ? 0.55
+                : 1,
           }}
         >
           {scanning ? (
@@ -551,18 +766,27 @@ export default function ScanBill() {
         </button>
 
         {!file && (
-          <p style={{ textAlign: "center", opacity: 0.65 }}>
+          <p
+            style={{
+              textAlign: "center",
+              opacity: 0.65,
+            }}
+          >
             Upload a receipt to enable scanning.
           </p>
         )}
 
         {error && (
-          <p className="scanner-error" role="alert">
+          <p
+            className="scanner-error"
+            role="alert"
+          >
             <AlertCircle size={18} />
             {error}
           </p>
         )}
 
+        {/* CAMERA INPUT */}
         <input
           ref={cameraRef}
           type="file"
@@ -573,6 +797,7 @@ export default function ScanBill() {
           hidden
         />
 
+        {/* UPLOAD INPUT */}
         <input
           ref={uploadRef}
           type="file"
@@ -581,21 +806,28 @@ export default function ScanBill() {
           disabled={scanning}
           hidden
         />
+
       </div>
 
+      {/* OCR RESULTS */}
       {scanResult && (
         <div className="ocr-results">
+
           <div className="ocr-results-header">
+
             <div>
               <span className="section-label">
                 OCR RESULTS
               </span>
 
-              <h2>Review Your Receipt</h2>
+              <h2>
+                Review Your Receipt
+              </h2>
 
               <p>
-                Verify the items, taxes and final amount
-                against your original receipt.
+                Verify the items, taxes and
+                final amount against your
+                original receipt.
               </p>
             </div>
 
@@ -603,111 +835,149 @@ export default function ScanBill() {
               <CheckCircle2 size={18} />
               Scan Complete
             </div>
+
           </div>
 
+          {/* OCR WARNING */}
           <div className="review-warning">
             <AlertTriangle size={20} />
+
             <p>
-              OCR may misread amounts. Check every item,
-              tax, discount and the printed grand total.
+              OCR may misread amounts. Check
+              every item, tax, discount and
+              the printed grand total.
             </p>
           </div>
 
+          {/* FOOD ITEMS */}
           {reviewItems.length > 0 ? (
             <div className="review-items">
-              {reviewItems.map((item, index) => (
-                <div className="review-item" key={item.id}>
-                  <div className="review-item-heading">
-                    <span>Item {index + 1}</span>
 
-                    <button
-                      type="button"
-                      className="review-delete"
-                      onClick={() => removeItem(item.id)}
-                      aria-label={`Remove item ${index + 1}`}
-                    >
-                      <Trash2 size={17} />
-                    </button>
+              {reviewItems.map(
+                (item, index) => (
+                  <div
+                    className="review-item"
+                    key={item.id}
+                  >
+
+                    <div className="review-item-heading">
+                      <span>
+                        Item {index + 1}
+                      </span>
+
+                      <button
+                        type="button"
+                        className="review-delete"
+                        onClick={() =>
+                          removeItem(item.id)
+                        }
+                        aria-label={`Remove item ${index + 1}`}
+                      >
+                        <Trash2 size={17} />
+                      </button>
+                    </div>
+
+                    <div className="review-item-fields">
+
+                      {/* FOOD NAME */}
+                      <label className="review-name-field">
+                        Food name
+
+                        <input
+                          type="text"
+                          value={item.name}
+                          onChange={(event) =>
+                            updateItem(
+                              item.id,
+                              "name",
+                              event.target.value
+                            )
+                          }
+                          placeholder="Food item"
+                        />
+                      </label>
+
+                      {/* QUANTITY */}
+                      <label>
+                        Quantity
+
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={item.quantity}
+                          onChange={(event) =>
+                            updateItem(
+                              item.id,
+                              "quantity",
+                              event.target.value
+                            )
+                          }
+                        />
+                      </label>
+
+                      {/* LINE TOTAL */}
+                      <label>
+                        Line total (₹)
+
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={item.total_price}
+                          onChange={(event) =>
+                            updateItem(
+                              item.id,
+                              "total_price",
+                              event.target.value
+                            )
+                          }
+                          placeholder="0.00"
+                        />
+                      </label>
+
+                    </div>
+
+                    {/* OCR REVIEW WARNING */}
+                    {item.needs_review && (
+                      <p className="review-item-alert">
+                        <AlertTriangle size={15} />
+
+                        OCR flagged this item.
+
+                        {item.raw_price &&
+                          ` Raw reading: ${item.raw_price}`}
+                      </p>
+                    )}
+
+                    {/* VALIDATION WARNINGS */}
+                    {itemProblems[index].length > 0 && (
+                      <p className="review-item-alert">
+                        <AlertCircle size={15} />
+
+                        {itemProblems[index].join(" ")}
+                      </p>
+                    )}
+
                   </div>
+                )
+              )}
 
-                  <div className="review-item-fields">
-                    <label className="review-name-field">
-                      Food name
-                      <input
-                        type="text"
-                        value={item.name}
-                        onChange={(event) =>
-                          updateItem(
-                            item.id,
-                            "name",
-                            event.target.value
-                          )
-                        }
-                        placeholder="Food item"
-                      />
-                    </label>
-
-                    <label>
-                      Quantity
-                      <input
-                        type="number"
-                        min="1"
-                        step="1"
-                        value={item.quantity}
-                        onChange={(event) =>
-                          updateItem(
-                            item.id,
-                            "quantity",
-                            event.target.value
-                          )
-                        }
-                      />
-                    </label>
-
-                    <label>
-                      Line total (₹)
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={item.total_price}
-                        onChange={(event) =>
-                          updateItem(
-                            item.id,
-                            "total_price",
-                            event.target.value
-                          )
-                        }
-                        placeholder="0.00"
-                      />
-                    </label>
-                  </div>
-
-                  {item.needs_review && (
-                    <p className="review-item-alert">
-                      <AlertTriangle size={15} />
-                      OCR flagged this item.
-                      {item.raw_price &&
-                        ` Raw reading: ${item.raw_price}`}
-                    </p>
-                  )}
-
-                  {itemProblems[index].length > 0 && (
-                    <p className="review-item-alert">
-                      <AlertCircle size={15} />
-                      {itemProblems[index].join(" ")}
-                    </p>
-                  )}
-                </div>
-              ))}
             </div>
           ) : (
             <div className="ocr-empty">
               <AlertCircle size={24} />
-              <h3>No food items detected</h3>
-              <p>Add the items manually below.</p>
+
+              <h3>
+                No food items detected
+              </h3>
+
+              <p>
+                Add the items manually below.
+              </p>
             </div>
           )}
 
+          {/* ADD ITEM */}
           <button
             type="button"
             className="review-add-button"
@@ -717,36 +987,53 @@ export default function ScanBill() {
             Add Food Item
           </button>
 
+          {/* RECEIPT SUMMARY */}
           <div className="review-summary">
-            <h3>Receipt Summary</h3>
+
+            <h3>
+              Receipt Summary
+            </h3>
 
             <div className="review-summary-row">
-              <span>Calculated food subtotal</span>
-              <strong>{money(foodSubtotal)}</strong>
+              <span>
+                Calculated food subtotal
+              </span>
+
+              <strong>
+                {money(foodSubtotal)}
+              </strong>
             </div>
 
+            {/* PRINTED SUBTOTAL */}
             <label className="review-subtotal-field">
               Printed food subtotal (₹)
+
               <input
                 type="text"
                 inputMode="decimal"
                 value={expectedSubtotal}
                 onChange={(event) => {
-                  setExpectedSubtotal(event.target.value);
+                  setExpectedSubtotal(
+                    event.target.value
+                  );
+
                   invalidateConfirmation();
                 }}
                 placeholder="Enter printed subtotal"
               />
             </label>
 
-            {scanResult.summary?.subtotal_needs_review && (
+            {scanResult.summary
+              ?.subtotal_needs_review && (
               <p className="review-item-alert">
                 <AlertTriangle size={15} />
+
                 The printed subtotal was unreadable.
                 Verify the value manually.
               </p>
             )}
 
+            {/* SUBTOTAL VALIDATION */}
             <p
               className={
                 subtotalMatches
@@ -759,68 +1046,111 @@ export default function ScanBill() {
               ) : (
                 <AlertTriangle size={18} />
               )}
+
               {subtotalMatches
                 ? "Food subtotal matches."
                 : "Food subtotal needs verification."}
             </p>
 
-            <h3 style={{ marginTop: "28px" }}>
+            {/* TAXES */}
+            <h3
+              style={{
+                marginTop: "28px",
+              }}
+            >
               Taxes & Adjustments
             </h3>
 
             <div className="review-tax-grid">
-              {CHARGES.map(({ key, label }) => (
-                <label
-                  className="review-tax-field"
-                  key={key}
-                >
-                  {label} (₹)
-                  <input
-                    type="text"
-                    inputMode={
-                      key === "round_off"
-                        ? "text"
-                        : "decimal"
-                    }
-                    value={charges[key]}
-                    onChange={(event) =>
-                      updateCharge(key, event.target.value)
-                    }
-                    placeholder="0.00"
-                  />
-                </label>
-              ))}
+
+              {CHARGES.map(
+                ({ key, label }) => (
+                  <label
+                    className="review-tax-field"
+                    key={key}
+                  >
+                    {label} (₹)
+
+                    <input
+                      type="text"
+                      inputMode={
+                        key === "round_off"
+                          ? "text"
+                          : "decimal"
+                      }
+                      value={charges[key]}
+                      onChange={(event) =>
+                        updateCharge(
+                          key,
+                          event.target.value
+                        )
+                      }
+                      placeholder="0.00"
+                    />
+                  </label>
+                )
+              )}
+
             </div>
 
             <p className="review-small-note">
-              Discounts are subtracted. Rounding
-              adjustments may be positive or negative.
-              Verify any unreadable taxes or charges
+              Discounts are subtracted.
+              Rounding adjustments may be
+              positive or negative. Verify
+              unreadable taxes or charges
               against the receipt.
             </p>
 
+            {/* TOTAL TAXES */}
             <div className="review-summary-row">
-              <span>Total taxes</span>
-              <strong>{money(taxes)}</strong>
+              <span>
+                Total taxes
+              </span>
+
+              <strong>
+                {money(taxes)}
+              </strong>
             </div>
 
+            {/* SERVICE CHARGE */}
             <div className="review-summary-row">
-              <span>Service charge</span>
-              <strong>{money(serviceCharge)}</strong>
+              <span>
+                Service charge
+              </span>
+
+              <strong>
+                {money(serviceCharge)}
+              </strong>
             </div>
 
+            {/* DISCOUNT */}
             <div className="review-summary-row">
-              <span>Discount</span>
-              <strong>-{money(discount)}</strong>
+              <span>
+                Discount
+              </span>
+
+              <strong>
+                -{money(discount)}
+              </strong>
             </div>
 
+            {/* ROUNDING */}
             <div className="review-summary-row">
-              <span>Rounding adjustment</span>
-              <strong>{money(roundOff)}</strong>
+              <span>
+                Rounding adjustment
+              </span>
+
+              <strong>
+                {money(roundOff)}
+              </strong>
             </div>
 
+            {/* CALCULATED GRAND TOTAL */}
             <div className="review-summary-row review-grand-total">
-              <span>Calculated grand total</span>
+              <span>
+                Calculated grand total
+              </span>
+
               <strong>
                 {allItemsValid &&
                 chargesValid &&
@@ -830,20 +1160,26 @@ export default function ScanBill() {
               </strong>
             </div>
 
+            {/* PRINTED GRAND TOTAL */}
             <label className="review-subtotal-field">
               Printed grand total (₹)
+
               <input
                 type="text"
                 inputMode="decimal"
                 value={expectedTotal}
                 onChange={(event) => {
-                  setExpectedTotal(event.target.value);
+                  setExpectedTotal(
+                    event.target.value
+                  );
+
                   invalidateConfirmation();
                 }}
                 placeholder="Enter final receipt amount"
               />
             </label>
 
+            {/* GRAND TOTAL VALIDATION */}
             <p
               className={
                 totalMatches
@@ -863,30 +1199,39 @@ export default function ScanBill() {
             </p>
 
             <p className="review-small-note">
-              Item prices are line totals, not unit
-              prices. The final amount includes taxes
-              and adjustments.
+              Item prices are line totals,
+              not unit prices. The final
+              amount includes taxes and
+              adjustments.
             </p>
+
           </div>
 
+          {/* CONFIRMATION SECTION */}
           <div className="review-confirm-section">
+
             <label className="review-checkbox">
               <input
                 type="checkbox"
                 checked={confirmed}
                 onChange={(event) => {
-                  setConfirmed(event.target.checked);
+                  setConfirmed(
+                    event.target.checked
+                  );
+
                   setSaved(false);
                 }}
               />
 
               <span>
-                I have checked all food items, quantities,
-                taxes, charges, discounts and the final
-                amount against the original receipt.
+                I have checked all food items,
+                quantities, taxes, charges,
+                discounts and the final amount
+                against the original receipt.
               </span>
             </label>
 
+            {/* CONFIRM & REDIRECT BUTTON */}
             <button
               type="button"
               className="review-save-button"
@@ -898,33 +1243,44 @@ export default function ScanBill() {
             </button>
 
             {saved && (
-              <div className="review-saved" role="status">
+              <div
+                className="review-saved"
+                role="status"
+              >
                 <CheckCircle2 size={20} />
-                Receipt confirmed and saved with taxes
-                and the final payable amount.
+
+                Receipt confirmed and saved.
+                Opening Split Bill...
               </div>
             )}
 
             <p className="review-small-note">
-              The reviewed receipt will be used by
-              the Split Bill page in the next step.
+              After confirmation, SplitMate
+              will automatically open the
+              Split Bill page.
             </p>
+
           </div>
 
+          {/* RAW OCR TEXT */}
           <details className="ocr-raw-details">
             <summary>
               View Recognized Receipt Text
             </summary>
+
             <pre>
-              {scanResult.raw_text || "No text detected."}
+              {scanResult.raw_text ||
+                "No text detected."}
             </pre>
           </details>
 
+          {/* ALTERNATIVE PRICE READINGS */}
           {scanResult.price_candidates?.length > 0 && (
             <details className="ocr-raw-details">
               <summary>
                 View Alternative OCR Price Readings
               </summary>
+
               <pre>
                 {JSON.stringify(
                   scanResult.price_candidates,
@@ -934,16 +1290,33 @@ export default function ScanBill() {
               </pre>
             </details>
           )}
+
         </div>
       )}
 
+      {/* SCANNING TIPS */}
       <div className="scanner-tips">
-        <h3>Tips for Better Scanning</h3>
-        <p>✓ Place the receipt on a flat surface.</p>
-        <p>✓ Make sure the text is clearly visible.</p>
-        <p>✓ Avoid shadows and blurry photos.</p>
-        <p>✓ Capture the entire receipt.</p>
+        <h3>
+          Tips for Better Scanning
+        </h3>
+
+        <p>
+          ✓ Place the receipt on a flat surface.
+        </p>
+
+        <p>
+          ✓ Make sure the text is clearly visible.
+        </p>
+
+        <p>
+          ✓ Avoid shadows and blurry photos.
+        </p>
+
+        <p>
+          ✓ Capture the entire receipt.
+        </p>
       </div>
+
     </div>
   );
 }
