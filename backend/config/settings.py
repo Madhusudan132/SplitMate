@@ -217,26 +217,6 @@ MAILERS = {
 # CORS — REACT FRONTEND
 # ============================================================
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:4173",
-    "http://127.0.0.1:4173",
-]
-
-CORS_ALLOWED_ORIGINS += [
-    origin.strip()
-    for origin in os.getenv(
-        "DJANGO_CORS_ALLOWED_ORIGINS", ""
-    ).split(",")
-    if origin.strip()
-]
-
-# Preserve SplitMate guest-token support
-CORS_ALLOW_HEADERS = [
-    *default_headers,
-    "x-guest-token",
-]
 
 # ============================================================
 # ALLOWED REQUEST HEADERS
@@ -245,28 +225,31 @@ CORS_ALLOW_HEADERS = [
 # Important: SplitMate uses X-Guest-Token for private bill
 # history without requiring user login.
 
-CORS_ALLOW_HEADERS = [
-    *default_headers,
-    "x-guest-token",
-]
+# ==========================================
+# SPLITMATE CORS CONFIGURATION
+# ==========================================
 
 
-# SplitMate React frontend - local development
-
+# Local development + production frontend
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:4173",
     "http://127.0.0.1:4173",
+    "https://split-mate-gilt.vercel.app",
 ]
 
+# Additional origins from Render environment
+CORS_ALLOWED_ORIGINS += [
+    origin.strip()
+    for origin in os.getenv(
+        "DJANGO_CORS_ALLOWED_ORIGINS", ""
+    ).split(",")
+    if origin.strip()
+]
+
+# Allow SplitMate's guest-token header
 CORS_ALLOW_HEADERS = [
-    "accept",
-    "authorization",
-    "content-type",
-    "origin",
-    "user-agent",
-    "x-csrftoken",
-    "x-requested-with",
+    *default_headers,
     "x-guest-token",
 ]
