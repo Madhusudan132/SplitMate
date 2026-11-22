@@ -41,3 +41,6 @@ backend/media/
 # Local project backups
 SplitMate-src.zip
 frontend.zip
+
+# Django collected static files
+backend/staticfiles/
