@@ -14,12 +14,19 @@ import {
   X,
   Users,
   CalendarDays,
+  RotateCcw,
+  Hourglass,
+  QrCode,
+  Wallet,
 } from "lucide-react";
 
 import { historyApi } from "../api/history";
+import UPIQRCode from "../components/UPIQRCode";
 import SavedReceipt from "./SavedReceipt";
 
-// Format integer paise as Indian rupees
+const UPI_PATTERN =
+  /^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$/;
+
 function money(paise) {
   const value = Number(paise) || 0;
 
@@ -29,6 +36,32 @@ function money(paise) {
   })}`;
 }
 
+function getPaymentStatus(transfer) {
+  if (
+    ["pending", "awaiting", "confirmed"].includes(
+      transfer?.status
+    )
+  ) {
+    return transfer.status;
+  }
+
+  return transfer?.paid === true
+    ? "confirmed"
+    : "pending";
+}
+
+function getStatusLabel(status) {
+  if (status === "confirmed") {
+    return "Confirmed Paid";
+  }
+
+  if (status === "awaiting") {
+    return "Awaiting Confirmation";
+  }
+
+  return "Pending";
+}
+
 export default function BillDetail() {
   const { id } = useParams();
 
@@ -36,28 +69,36 @@ export default function BillDetail() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
 
-  // Rename bill
-  const [editingTitle, setEditingTitle] = useState(false);
+  const [editingTitle, setEditingTitle] =
+    useState(false);
+
   const [newTitle, setNewTitle] = useState("");
+  const [upiIds, setUpiIds] = useState({});
+  const [upiDirty, setUpiDirty] = useState(false);
+  const [expandedQRs, setExpandedQRs] = useState({});
 
-  // Load bill from Django
   useEffect(() => {
     let active = true;
 
     async function loadBill() {
       setLoading(true);
       setError("");
+      setMessage("");
       setBill(null);
       setEditingTitle(false);
+      setExpandedQRs({});
+      setUpiDirty(false);
 
       try {
         const result = await historyApi.get(id);
 
-        if (active) {
-          setBill(result);
-          setNewTitle(result.title);
-        }
+        if (!active) return;
+
+        setBill(result);
+        setNewTitle(result.title);
+        setUpiIds(result.upiIds ?? {});
       } catch (err) {
         if (active) {
           setError(
@@ -65,9 +106,7 @@ export default function BillDetail() {
           );
         }
       } finally {
-        if (active) {
-          setLoading(false);
-        }
+        if (active) setLoading(false);
       }
     }
 
@@ -78,7 +117,76 @@ export default function BillDetail() {
     };
   }, [id]);
 
-  // Rename a saved bill
+  function updateUpiId(friendId, value) {
+    setUpiIds((current) => ({
+      ...current,
+      [friendId]: value,
+    }));
+
+    setUpiDirty(true);
+    setError("");
+    setMessage("");
+  }
+
+  function toggleQRCode(index) {
+    setExpandedQRs((current) => ({
+      ...current,
+      [index]: !current[index],
+    }));
+  }
+
+  async function saveUpiIds() {
+    if (!bill || saving) return;
+
+    const cleaned = {};
+
+    for (const friend of bill.friends) {
+      const value = String(
+        upiIds[friend.id] ?? ""
+      ).trim();
+
+      if (!value) continue;
+
+      if (
+        value.length > 120 ||
+        !UPI_PATTERN.test(value)
+      ) {
+        setError(
+          `Enter a valid UPI ID for ${friend.name}.`
+        );
+        return;
+      }
+
+      cleaned[friend.id] = value;
+    }
+
+    setSaving(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const updated =
+        await historyApi.updateUpiIds(
+          bill.id,
+          cleaned
+        );
+
+      setBill(updated);
+      setUpiIds(updated.upiIds ?? {});
+      setUpiDirty(false);
+
+      setMessage(
+        "Recipient UPI IDs saved successfully."
+      );
+    } catch (err) {
+      setError(
+        err.message || "Could not save UPI IDs."
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function renameBill() {
     if (!bill || saving) return;
 
@@ -98,6 +206,7 @@ export default function BillDetail() {
 
     setSaving(true);
     setError("");
+    setMessage("");
 
     try {
       const updated = await historyApi.rename(
@@ -108,6 +217,10 @@ export default function BillDetail() {
       setBill(updated);
       setNewTitle(updated.title);
       setEditingTitle(false);
+
+      setMessage(
+        "Bill name updated successfully."
+      );
     } catch (err) {
       setError(
         err.message || "Could not rename bill."
@@ -117,25 +230,82 @@ export default function BillDetail() {
     }
   }
 
-  // Update Paid/Pending status in Django
-  async function togglePaid(index) {
+  function namesForMessage(friendId) {
+    const friend = bill?.friends?.find(
+      (item) => item.id === friendId
+    );
+
+    return friend?.name || "The payer";
+  }
+
+  async function updatePaymentStatus(
+    index,
+    nextStatus
+  ) {
     if (!bill || saving) return;
+
+    if (
+      !["pending", "awaiting", "confirmed"].includes(
+        nextStatus
+      )
+    ) {
+      return;
+    }
 
     const transfer = bill.transfers[index];
 
     if (!transfer) return;
 
+    const currentStatus =
+      getPaymentStatus(transfer);
+
+    if (currentStatus === nextStatus) {
+      return;
+    }
+
+    const allowedNext = {
+      pending: ["awaiting"],
+      awaiting: ["confirmed", "pending"],
+      confirmed: ["pending"],
+    };
+
+    if (
+      !allowedNext[currentStatus].includes(
+        nextStatus
+      )
+    ) {
+      return;
+    }
+
     setSaving(true);
     setError("");
+    setMessage("");
 
     try {
-      const updated = await historyApi.updatePayment(
-        bill.id,
-        index,
-        !transfer.paid
-      );
+      const updated =
+        await historyApi.updatePayment(
+          bill.id,
+          index,
+          nextStatus
+        );
 
       setBill(updated);
+
+      if (nextStatus === "awaiting") {
+        setMessage(
+          `${namesForMessage(
+            transfer.fromId
+          )} reported making the payment. Awaiting recipient confirmation.`
+        );
+      } else if (nextStatus === "confirmed") {
+        setMessage(
+          "Payment receipt recorded as confirmed."
+        );
+      } else {
+        setMessage(
+          "Payment status reset to Pending."
+        );
+      }
     } catch (err) {
       setError(
         err.message || "Could not update payment."
@@ -145,35 +315,30 @@ export default function BillDetail() {
     }
   }
 
-  // Loading state
   if (loading) {
     return (
-      <div className="split-page history-page">
-        <section className="panel">
+      <div className="split-page history-page neo-detail-page">
+        <section className="panel neo-detail-overview">
           <h2 className="panel-title">
             <ReceiptText size={22} />
             Loading Saved Bill
           </h2>
-
           <p>Please wait...</p>
         </section>
       </div>
     );
   }
 
-  // Bill unavailable
   if (!bill) {
     return (
-      <div className="split-page history-page">
-        <section className="panel">
+      <div className="split-page history-page neo-detail-page">
+        <section className="panel neo-detail-overview">
           <h2 className="panel-title">
             <AlertTriangle size={22} />
             Bill Unavailable
           </h2>
 
-          <p>
-            {error || "Bill not found."}
-          </p>
+          <p>{error || "Bill not found."}</p>
 
           <Link
             to="/history"
@@ -187,7 +352,6 @@ export default function BillDetail() {
     );
   }
 
-  // Friend ID -> name mapping
   const names = Object.fromEntries(
     bill.friends.map((friend) => [
       friend.id,
@@ -195,7 +359,6 @@ export default function BillDetail() {
     ])
   );
 
-  // Settlement calculations
   const totalTransfers = bill.transfers.reduce(
     (sum, transfer) => sum + transfer.amount,
     0
@@ -204,14 +367,22 @@ export default function BillDetail() {
   const received = bill.transfers.reduce(
     (sum, transfer) =>
       sum +
-      (transfer.paid ? transfer.amount : 0),
+      (getPaymentStatus(transfer) === "confirmed"
+        ? transfer.amount
+        : 0),
     0
   );
 
   const pending = totalTransfers - received;
 
   const paidCount = bill.transfers.filter(
-    (transfer) => transfer.paid
+    (transfer) =>
+      getPaymentStatus(transfer) === "confirmed"
+  ).length;
+
+  const awaitingCount = bill.transfers.filter(
+    (transfer) =>
+      getPaymentStatus(transfer) === "awaiting"
   ).length;
 
   const progress =
@@ -220,16 +391,17 @@ export default function BillDetail() {
       : (received / totalTransfers) * 100;
 
   const isSettled = bill.transfers.every(
-    (transfer) => transfer.paid
+    (transfer) =>
+      getPaymentStatus(transfer) === "confirmed"
   );
 
   return (
-    <div className="split-page history-page">
+    <div className="split-page history-page neo-detail-page">
 
       {/* PAGE HEADING */}
-      <div className="page-heading">
+      <div className="page-heading neo-detail-hero">
         <span className="section-label">
-          SPLITMATE BILL HISTORY
+          SPLITMATE / SAVED BILL
         </span>
 
         {!editingTitle ? (
@@ -244,6 +416,7 @@ export default function BillDetail() {
                 setNewTitle(bill.title);
                 setEditingTitle(true);
                 setError("");
+                setMessage("");
               }}
               aria-label="Rename bill"
             >
@@ -288,6 +461,7 @@ export default function BillDetail() {
                 setEditingTitle(false);
                 setNewTitle(bill.title);
                 setError("");
+                setMessage("");
               }}
               aria-label="Cancel renaming"
             >
@@ -298,7 +472,6 @@ export default function BillDetail() {
 
         <p className="history-date">
           <CalendarDays size={16} />
-
           Saved on{" "}
           {new Date(
             bill.createdAt
@@ -307,7 +480,7 @@ export default function BillDetail() {
       </div>
 
       {/* TOP ACTIONS */}
-      <div className="history-top-actions">
+      <div className="history-top-actions neo-detail-top-actions">
         <Link
           to="/history"
           className="small-button"
@@ -318,9 +491,7 @@ export default function BillDetail() {
 
         <span
           className={`history-status-badge ${
-            isSettled
-              ? "settled"
-              : "pending"
+            isSettled ? "settled" : "pending"
           }`}
         >
           {isSettled ? (
@@ -329,9 +500,7 @@ export default function BillDetail() {
             <Clock3 size={16} />
           )}
 
-          {isSettled
-            ? "Settled"
-            : "Pending"}
+          {isSettled ? "Settled" : "Pending"}
         </span>
       </div>
 
@@ -345,45 +514,58 @@ export default function BillDetail() {
         </p>
       )}
 
+      {message && (
+        <p className="review-match">
+          <CheckCircle2 size={17} />
+          {message}
+        </p>
+      )}
+
       {/* MAIN LAYOUT */}
       <div className="split-layout">
-
         <div className="split-main">
 
-          {/* BILL DETAILS */}
-          <section className="panel">
-
+          {/* BILL OVERVIEW */}
+          <section className="panel neo-detail-overview">
             <h2 className="panel-title">
               <ReceiptText size={22} />
-              Bill Details
+              Bill Overview
             </h2>
 
-            <div className="summary-total">
-              <span>Restaurant bill</span>
+            <div className="summary-total neo-detail-total">
+              <span>RESTAURANT BILL</span>
 
               <strong>
                 {money(bill.grandTotal)}
               </strong>
 
               <small>
-                <Users size={14} />
-                {" "}
+                <Users size={14} />{" "}
                 {bill.friends.length} friends
               </small>
             </div>
 
             {/* INDIVIDUAL SHARES */}
-            <h3>Individual Shares</h3>
+            <h3 className="neo-detail-section-title">
+              <Users size={19} />
+              Individual Shares
+            </h3>
 
-            <div className="history-detail-list">
-              {bill.friends.map((friend) => (
+            <div className="history-detail-list neo-detail-friends">
+              {bill.friends.map((friend, index) => (
                 <div
-                  className="history-detail-row"
+                  className="history-detail-row neo-detail-friend"
                   key={friend.id}
                 >
-                  <span>
-                    {friend.name}
-                  </span>
+                  <div className="neo-detail-friend-name">
+                    <span
+                      className={`avatar avatar-${index % 5}`}
+                    >
+                      {friend.name[0].toUpperCase()}
+                    </span>
+
+                    <span>{friend.name}</span>
+                  </div>
 
                   <strong>
                     {money(friend.share)}
@@ -393,17 +575,18 @@ export default function BillDetail() {
             </div>
 
             {/* RESTAURANT PAYMENTS */}
-            <h3>Restaurant Payments</h3>
+            <h3 className="neo-detail-section-title">
+              <Wallet size={19} />
+              Restaurant Payments
+            </h3>
 
-            <div className="history-detail-list">
+            <div className="history-detail-list neo-detail-payments">
               {bill.friends.map((friend) => (
                 <div
                   className="history-detail-row"
                   key={friend.id}
                 >
-                  <span>
-                    {friend.name}
-                  </span>
+                  <span>{friend.name}</span>
 
                   <strong>
                     {money(
@@ -413,21 +596,20 @@ export default function BillDetail() {
                 </div>
               ))}
             </div>
-
           </section>
 
-          {/* ORIGINAL RECEIPT */}
-          <SavedReceipt
-            receiptData={bill.receiptData}
-            grandTotal={bill.grandTotal}
-            friends={bill.friends}
-          />
-
+          {/* ORIGINAL SAVED RECEIPT */}
+          <div className="neo-detail-receipt">
+            <SavedReceipt
+              receiptData={bill.receiptData}
+              grandTotal={bill.grandTotal}
+              friends={bill.friends}
+            />
+          </div>
         </div>
 
         {/* PAYMENT TRACKING */}
-        <aside className="panel summary-panel">
-
+        <aside className="panel summary-panel neo-detail-tracking">
           <h2 className="panel-title">
             <ArrowRight size={22} />
             Payment Tracking
@@ -441,71 +623,204 @@ export default function BillDetail() {
           ) : (
             <div className="summary-list">
               {bill.transfers.map(
-                (transfer, index) => (
-                  <div
-                    className="settlement-transfer settlement-tracked-transfer"
-                    key={index}
-                  >
+                (transfer, index) => {
+                  const status =
+                    getPaymentStatus(transfer);
 
-                    <div className="settlement-transfer-info">
-                      <div className="settlement-transfer-route">
+                  const confirmed =
+                    status === "confirmed";
 
-                        <strong>
-                          {names[transfer.fromId] ||
-                            "Unknown"}
-                        </strong>
+                  const recipientName =
+                    names[transfer.toId] || "Unknown";
 
-                        <ArrowRight size={18} />
+                  return (
+                    <div
+                      className="settlement-transfer settlement-tracked-transfer neo-detail-transfer"
+                      key={`${transfer.fromId}-${transfer.toId}-${index}`}
+                    >
+                      {/* TRANSFER DETAILS */}
+                      <div className="settlement-transfer-info">
+                        <div className="settlement-transfer-route">
+                          <strong>
+                            {names[transfer.fromId] ||
+                              "Unknown"}
+                          </strong>
 
-                        <strong>
-                          {names[transfer.toId] ||
-                            "Unknown"}
+                          <ArrowRight size={18} />
+
+                          <strong>
+                            {recipientName}
+                          </strong>
+                        </div>
+
+                        <strong className="settlement-amount">
+                          {money(transfer.amount)}
                         </strong>
                       </div>
 
-                      <strong className="settlement-amount">
-                        {money(transfer.amount)}
-                      </strong>
+                      {/* UPI QR */}
+                      <div className="neo-detail-qr-section">
+                        <button
+                          type="button"
+                          className="small-button neo-detail-qr-button"
+                          aria-expanded={
+                            !!expandedQRs[index]
+                          }
+                          onClick={() =>
+                            toggleQRCode(index)
+                          }
+                        >
+                          <QrCode size={17} />
+
+                          {expandedQRs[index]
+                            ? "Hide UPI QR"
+                            : "Generate UPI QR"}
+                        </button>
+
+                        {expandedQRs[index] && (
+                          <div className="neo-detail-qr-content">
+                            <UPIQRCode
+                              recipientName={
+                                recipientName
+                              }
+                              amount={transfer.amount}
+                              upiId={
+                                upiIds[
+                                  transfer.toId
+                                ] || ""
+                              }
+                              onUpiIdChange={(value) =>
+                                updateUpiId(
+                                  transfer.toId,
+                                  value
+                                )
+                              }
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* PAYMENT STATUS */}
+                      <span
+                        className={`settlement-status-button ${
+                          confirmed
+                            ? "is-paid"
+                            : "is-pending"
+                        }`}
+                        role="status"
+                      >
+                        {confirmed ? (
+                          <CheckCircle2 size={16} />
+                        ) : status === "awaiting" ? (
+                          <Hourglass size={16} />
+                        ) : (
+                          <Clock3 size={16} />
+                        )}
+
+                        {getStatusLabel(status)}
+                      </span>
+
+                      {/* PAYMENT ACTIONS */}
+                      <div className="settlement-actions neo-detail-actions">
+                        {status === "pending" && (
+                          <button
+                            type="button"
+                            className="small-button"
+                            disabled={saving}
+                            onClick={() =>
+                              updatePaymentStatus(
+                                index,
+                                "awaiting"
+                              )
+                            }
+                          >
+                            <Clock3 size={16} />
+                            I've Paid
+                          </button>
+                        )}
+
+                        {status === "awaiting" && (
+                          <button
+                            type="button"
+                            className="small-button"
+                            disabled={saving}
+                            onClick={() =>
+                              updatePaymentStatus(
+                                index,
+                                "confirmed"
+                              )
+                            }
+                          >
+                            <CheckCircle2 size={16} />
+                            Confirm Received
+                          </button>
+                        )}
+
+                        {status !== "pending" && (
+                          <button
+                            type="button"
+                            className="small-button"
+                            disabled={saving}
+                            onClick={() =>
+                              updatePaymentStatus(
+                                index,
+                                "pending"
+                              )
+                            }
+                          >
+                            <RotateCcw size={16} />
+                            Reset to Pending
+                          </button>
+                        )}
+                      </div>
                     </div>
+                  );
+                }
+              )}
+            </div>
+          )}
 
-                    <button
-                      type="button"
-                      disabled={saving}
-                      className={`settlement-status-button ${
-                        transfer.paid
-                          ? "is-paid"
-                          : "is-pending"
-                      }`}
-                      onClick={() =>
-                        togglePaid(index)
-                      }
-                    >
-                      {transfer.paid ? (
-                        <CheckCircle2 size={16} />
-                      ) : (
-                        <Clock3 size={16} />
-                      )}
+          {/* SAVE UPI DETAILS */}
+          {bill.transfers.length > 0 && (
+            <div className="history-save-panel neo-detail-upi-save">
+              <h3>Recipient UPI Details</h3>
 
-                      {transfer.paid
-                        ? "Paid"
-                        : "Pending"}
-                    </button>
+              <p>
+                Enter or edit the UPI ID inside
+                each payment QR section, then
+                save the changes.
+              </p>
 
-                  </div>
-                )
+              <button
+                type="button"
+                className="small-button"
+                disabled={saving || !upiDirty}
+                onClick={saveUpiIds}
+              >
+                <Save size={17} />
+                {saving
+                  ? "Saving..."
+                  : "Save UPI Details"}
+              </button>
+
+              {upiDirty && (
+                <p className="validation-message">
+                  <AlertTriangle size={16} />
+                  You have unsaved UPI changes.
+                </p>
               )}
             </div>
           )}
 
           {/* PAYMENT PROGRESS */}
-          <div className="settlement-tracking">
-
+          <div className="settlement-tracking neo-detail-progress">
             <div className="settlement-tracking-heading">
               <h3>Payment Progress</h3>
 
               <span>
-                {paidCount} of{" "}
-                {bill.transfers.length} paid
+                {paidCount} confirmed ·{" "}
+                {awaitingCount} awaiting ·{" "}
+                {bill.transfers.length} total
               </span>
             </div>
 
@@ -526,7 +841,6 @@ export default function BillDetail() {
             </div>
 
             <div className="settlement-tracking-totals">
-
               <div className="settlement-tracking-card">
                 <span>Received</span>
 
@@ -538,28 +852,28 @@ export default function BillDetail() {
               <div className="settlement-tracking-card">
                 <span>Pending</span>
 
-                <strong>
-                  {money(pending)}
-                </strong>
+                <strong>{money(pending)}</strong>
               </div>
-
             </div>
 
             {bill.transfers.length > 0 &&
               paidCount === bill.transfers.length && (
                 <p className="review-match">
                   <CheckCircle2 size={18} />
-                  All payments are marked
-                  as received!
+                  All payments are confirmed received!
                 </p>
               )}
 
+            <p className="summary-note neo-detail-payment-note">
+              UPI QR codes only request payments.
+              They do not verify transactions.
+              Confirm Received should be used
+              only after checking the recipient's
+              payment account.
+            </p>
           </div>
-
         </aside>
-
       </div>
-
     </div>
   );
 }

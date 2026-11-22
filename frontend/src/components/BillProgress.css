@@ -1,0 +1,154 @@
+
+.bill-progress {
+  --progress-ink: #111111;
+
+  width: 100%;
+  margin: 0 0 30px;
+  padding: 20px;
+  background: #ffffff;
+  color: var(--progress-ink);
+  border: 3px solid var(--progress-ink);
+  border-radius: 5px;
+  box-shadow: 6px 6px 0 var(--progress-ink);
+}
+
+.bill-progress-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 17px;
+}
+
+.bill-progress-eyebrow {
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 1.3px;
+}
+
+.bill-progress-count {
+  padding: 6px 10px;
+  background: #c9a7ff;
+  border: 2px solid var(--progress-ink);
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.bill-progress-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.bill-progress-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 65px;
+  padding: 11px;
+  background: #f2f2f2;
+  border: 2px solid var(--progress-ink);
+  border-radius: 4px;
+  opacity: 0.72;
+}
+
+.bill-progress-step.is-complete {
+  background: #9cf0af;
+  opacity: 1;
+}
+
+.bill-progress-step.is-current {
+  background: #ff3385;
+  box-shadow: 4px 4px 0 var(--progress-ink);
+  opacity: 1;
+  transform: translate(-2px, -2px);
+}
+
+.bill-progress-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 33px;
+  height: 33px;
+  background: #ffffff;
+  border: 2px solid var(--progress-ink);
+  border-radius: 4px;
+}
+
+.bill-progress-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bill-progress-number {
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.bill-progress-label strong {
+  font-size: 15px;
+  font-weight: 950;
+}
+
+[data-theme="dark"] .bill-progress {
+  background: #252525;
+  color: #ffffff;
+  border-color: #f8f8f8;
+  box-shadow: 6px 6px 0 #000000;
+}
+
+[data-theme="dark"] .bill-progress-step {
+  color: #111111;
+}
+
+[data-theme="dark"] .bill-progress-step.is-current {
+  box-shadow: 4px 4px 0 #000000;
+}
+
+[data-theme="dark"] .bill-progress-count {
+  color: #111111;
+}
+
+@media (max-width: 600px) {
+  .bill-progress {
+    padding: 13px;
+    margin-bottom: 23px;
+    box-shadow: 4px 4px 0 #111111;
+  }
+
+  .bill-progress-steps {
+    gap: 6px;
+  }
+
+  .bill-progress-step {
+    flex-direction: column;
+    gap: 5px;
+    padding: 8px 3px;
+    min-height: 77px;
+  }
+
+  .bill-progress-icon {
+    width: 29px;
+    height: 29px;
+  }
+
+  .bill-progress-label {
+    align-items: center;
+  }
+
+  .bill-progress-number {
+    display: none;
+  }
+
+  .bill-progress-label strong {
+    font-size: 11px;
+  }
+}

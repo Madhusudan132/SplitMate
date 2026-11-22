@@ -1,6 +1,8 @@
 
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import BillProgress from "../components/BillProgress";
+
 import {
   Wallet,
   Users,
@@ -12,12 +14,16 @@ import {
   RefreshCw,
   Clock3,
   Save,
+  QrCode,
 } from "lucide-react";
 
 import { historyApi } from "../api/history";
+import UPIQRCode from "../components/UPIQRCode";
 
 const STORAGE_KEY = "splitmate_settlement";
 const TRACKING_KEY = "splitmate_payment_tracking";
+
+const STATUSES = ["pending", "awaiting", "confirmed"];
 
 function toPaise(value) {
   const text = String(value ?? "").trim();
@@ -32,7 +38,7 @@ function toPaise(value) {
     Number(rupees) * 100 +
     Number(decimal.padEnd(2, "0"));
 
-  return Number.isSafeInteger(amount)
+  return Number.isSafeInteger(amount) && amount >= 0
     ? amount
     : null;
 }
@@ -122,7 +128,6 @@ function calculateTransfers(friends, payments) {
   }
 
   const transfers = [];
-
   let i = 0;
   let j = 0;
 
@@ -189,9 +194,7 @@ function transferKey(transfer) {
 }
 
 function transferSignature(transfers) {
-  return JSON.stringify(
-    transfers.map(transferKey)
-  );
+  return JSON.stringify(transfers.map(transferKey));
 }
 
 function loadTracking(data) {
@@ -200,6 +203,7 @@ function loadTracking(data) {
     payments: createPayments(data),
     transferSignature: "",
     statuses: {},
+    upiIds: {},
   };
 
   if (!data) return initial;
@@ -247,20 +251,34 @@ function loadTracking(data) {
         : [];
 
     const signature = transferSignature(transfers);
+    const upiIds = {};
+
+    for (const friend of data.friends) {
+      const value = saved.upiIds?.[friend.id];
+
+      upiIds[friend.id] =
+        typeof value === "string" ? value : "";
+    }
 
     return {
       signature: initial.signature,
       payments,
+      upiIds,
       transferSignature: signature,
       statuses:
         saved.transferSignature === signature
           ? Object.fromEntries(
               transfers.map((transfer) => {
                 const key = transferKey(transfer);
+                const value = saved.statuses[key];
 
                 return [
                   key,
-                  saved.statuses[key] === true,
+                  value === true
+                    ? "confirmed"
+                    : STATUSES.includes(value)
+                      ? value
+                      : "pending",
                 ];
               })
             )
@@ -282,7 +300,6 @@ export default function Settlement() {
 
   const [message, setMessage] = useState("");
 
-  // Bill History states
   const [billTitle, setBillTitle] = useState(
     "Dinner with Friends"
   );
@@ -290,7 +307,10 @@ export default function Settlement() {
   const [savingBill, setSavingBill] = useState(false);
   const [saveError, setSaveError] = useState("");
 
+  const [expandedQRs, setExpandedQRs] = useState({});
+
   const payments = tracking.payments;
+  const upiIds = tracking.upiIds ?? {};
 
   const paymentAmounts = data
     ? data.friends.map((friend) =>
@@ -327,8 +347,24 @@ export default function Settlement() {
       ? tracking.statuses
       : {};
 
-  const isPaid = (transfer) =>
-    statuses[transferKey(transfer)] === true;
+  function getStatus(transfer) {
+    const value = statuses[transferKey(transfer)];
+
+    return value === true
+      ? "confirmed"
+      : STATUSES.includes(value)
+        ? value
+        : "pending";
+  }
+
+  function isPaid(transfer) {
+    return getStatus(transfer) === "confirmed";
+  }
+
+  const awaitingCount = transfers.filter(
+    (transfer) =>
+      getStatus(transfer) === "awaiting"
+  ).length;
 
   const totalToSettle = transfers.reduce(
     (sum, transfer) => sum + transfer.amount,
@@ -345,9 +381,7 @@ export default function Settlement() {
   const totalPending =
     totalToSettle - totalReceived;
 
-  const paidCount = transfers.filter(
-    isPaid
-  ).length;
+  const paidCount = transfers.filter(isPaid).length;
 
   const progress =
     totalToSettle > 0
@@ -356,6 +390,7 @@ export default function Settlement() {
         ? 100
         : 0;
 
+  // Save payment tracking in session storage.
   useEffect(() => {
     if (!data) return;
 
@@ -365,7 +400,7 @@ export default function Settlement() {
         JSON.stringify(tracking)
       );
     } catch {
-      // Browser storage may be unavailable.
+      // Storage may be unavailable.
     }
   }, [data, tracking]);
 
@@ -374,6 +409,7 @@ export default function Settlement() {
 
     setData(latest);
     setTracking(loadTracking(latest));
+    setExpandedQRs({});
     setMessage("");
     setSaveError("");
   }
@@ -389,15 +425,62 @@ export default function Settlement() {
       statuses: {},
     }));
 
+    setExpandedQRs({});
     setMessage("");
     setSaveError("");
   }
 
-  function togglePaid(transfer) {
+  function updateUpiId(friendId, value) {
+    setTracking((current) => ({
+      ...current,
+      upiIds: {
+        ...current.upiIds,
+        [friendId]: value,
+      },
+    }));
+
+    setSaveError("");
+  }
+
+  function toggleQRCode(transfer) {
+    const key = transferKey(transfer);
+
+    setExpandedQRs((current) => ({
+      ...current,
+      [key]: !current[key],
+    }));
+  }
+
+  // Pending -> Awaiting -> Confirmed.
+  function setTransferStatus(transfer, nextStatus) {
+    if (!STATUSES.includes(nextStatus)) {
+      return;
+    }
+
+    const currentStatus = getStatus(transfer);
+
+    const allowedNext = {
+      pending: ["pending", "awaiting"],
+      awaiting: [
+        "awaiting",
+        "confirmed",
+        "pending",
+      ],
+      confirmed: ["confirmed", "pending"],
+    };
+
+    if (
+      !allowedNext[currentStatus].includes(
+        nextStatus
+      )
+    ) {
+      return;
+    }
+
     const key = transferKey(transfer);
 
     setTracking((current) => {
-      const oldStatuses =
+      const previous =
         current.transferSignature ===
         currentTransferSignature
           ? current.statuses
@@ -408,8 +491,8 @@ export default function Settlement() {
         transferSignature:
           currentTransferSignature,
         statuses: {
-          ...oldStatuses,
-          [key]: oldStatuses[key] !== true,
+          ...previous,
+          [key]: nextStatus,
         },
       };
     });
@@ -418,110 +501,147 @@ export default function Settlement() {
     setSaveError("");
   }
 
-  // Save the current settlement to Django.
-  
-async function saveBillToHistory() {
-  if (!paymentMatches || !data || savingBill) {
-    return;
-  }
-
-  const title = billTitle.trim();
-
-  if (!title) {
-    setSaveError("Please enter a bill title.");
-    return;
-  }
-
-  if (title.length > 120) {
-    setSaveError(
-      "Bill title must be 120 characters or fewer."
-    );
-    return;
-  }
-
-  setSavingBill(true);
-  setSaveError("");
-
-  try {
-    const paymentValues = {};
-
-    for (const friend of data.friends) {
-      const amount = toPaise(
-        payments[friend.id]
-      );
-
-      if (amount === null) {
-        throw new Error(
-          "Invalid restaurant payment."
-        );
-      }
-
-      paymentValues[friend.id] = amount;
+  // Save the settlement to Django history.
+  async function saveBillToHistory() {
+    if (
+      !paymentMatches ||
+      !data ||
+      savingBill
+    ) {
+      return;
     }
 
-    const payload = {
-      title,
+    const title = billTitle.trim();
 
-      grandTotal: data.grandTotal,
+    if (!title) {
+      setSaveError("Please enter a bill title.");
+      return;
+    }
 
-      friends: data.friends.map((friend) => ({
-        id: friend.id,
-        name: friend.name,
-        share: friend.share,
-      })),
+    if (title.length > 120) {
+      setSaveError(
+        "Bill title must be 120 characters or fewer."
+      );
+      return;
+    }
 
-      payments: paymentValues,
+    setSavingBill(true);
+    setSaveError("");
 
-      transfers: transfers.map((transfer) => ({
-        fromId: transfer.fromId,
-        toId: transfer.toId,
-        amount: transfer.amount,
-        paid: isPaid(transfer),
-      })),
+    try {
+      const paymentValues = {};
 
-      // NEW: Save original receipt and assignments
-      receiptData: data.receiptData ?? {},
-    };
+      for (const friend of data.friends) {
+        const amount = toPaise(
+          payments[friend.id]
+        );
 
-    const saved = await historyApi.create(
-      payload
-    );
+        if (amount === null) {
+          throw new Error(
+            "Invalid restaurant payment."
+          );
+        }
 
-    navigate(`/history/${saved.id}`);
-  } catch (error) {
-    setSaveError(
-      error.message || "Unable to save bill."
-    );
-  } finally {
-    setSavingBill(false);
+        paymentValues[friend.id] = amount;
+      }
+
+      const cleanedUpiIds = {};
+
+      const upiPattern =
+        /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$/;
+
+      for (const friend of data.friends) {
+        const upiId = (
+          upiIds[friend.id] ?? ""
+        ).trim();
+
+        if (
+          upiId &&
+          !upiPattern.test(upiId)
+        ) {
+          throw new Error(
+            `Invalid UPI ID for ${friend.name}.`
+          );
+        }
+
+        if (upiId) {
+          cleanedUpiIds[friend.id] = upiId;
+        }
+      }
+
+      const payload = {
+        title,
+        grandTotal: data.grandTotal,
+
+        friends: data.friends.map((friend) => ({
+          id: friend.id,
+          name: friend.name,
+          share: friend.share,
+        })),
+
+        payments: paymentValues,
+
+        transfers: transfers.map((transfer) => ({
+          fromId: transfer.fromId,
+          toId: transfer.toId,
+          amount: transfer.amount,
+          paid: isPaid(transfer),
+          status: getStatus(transfer),
+        })),
+
+        receiptData: data.receiptData ?? {},
+        upiIds: cleanedUpiIds,
+      };
+
+      const saved = await historyApi.create(payload);
+
+      navigate(`/history/${saved.id}`);
+    } catch (error) {
+      setSaveError(
+        error.message ||
+        "Unable to save bill."
+      );
+    } finally {
+      setSavingBill(false);
+    }
   }
-}
 
-
+  // Prepare the shareable settlement summary.
   const shareText = paymentMatches
     ? [
         "SplitMate — Payment Settlement",
         "",
-        `Restaurant bill: ${money(data.grandTotal)}`,
+        `Restaurant bill: ${money(
+          data.grandTotal
+        )}`,
         "",
         "Individual shares:",
         ...data.friends.map(
           (friend) =>
-            `${friend.name}: ${money(friend.share)}`
+            `${friend.name}: ${money(
+              friend.share
+            )}`
         ),
         "",
         "Payments to settle:",
         ...(transfers.length
-          ? transfers.map(
-              (transfer) =>
-                `${transfer.from} pays ${transfer.to} ${money(
-                  transfer.amount
-                )} — ${
-                  isPaid(transfer)
-                    ? "Paid"
-                    : "Pending"
-                }`
-            )
+          ? transfers.map((transfer) => {
+              const status = getStatus(transfer);
+
+              const label =
+                status === "confirmed"
+                  ? "Confirmed Paid"
+                  : status === "awaiting"
+                    ? "Awaiting Confirmation"
+                    : "Pending";
+
+              return (
+                `${transfer.from} pays ` +
+                `${transfer.to} ` +
+                `${money(transfer.amount)}` +
+                ` — ${label}`
+              );
+            })
           : ["No transfers required."]),
         "",
         `Received: ${money(totalReceived)}`,
@@ -543,7 +663,7 @@ async function saveBillToHistory() {
       );
     } catch {
       setMessage(
-        "Could not copy automatically. Try sharing instead."
+        "Could not copy automatically."
       );
     }
   }
@@ -571,6 +691,8 @@ async function saveBillToHistory() {
 
   return (
     <div className="split-page settlement-page">
+
+      {/* PAGE HEADING */}
       <div className="page-heading">
         <span className="section-label">
           SPLITMATE SETTLEMENT
@@ -580,10 +702,14 @@ async function saveBillToHistory() {
 
         <p>
           Enter who paid the restaurant,
-          calculate settlements, track payments,
+          calculate settlements, generate
+          UPI payment QR codes, track payments,
           and save the bill to your history.
         </p>
       </div>
+
+      {/* NEO-BRUTALIST WORKFLOW PROGRESS */}
+      <BillProgress currentStep="settle" />
 
       {!data ? (
         <section className="panel">
@@ -593,8 +719,8 @@ async function saveBillToHistory() {
           </h2>
 
           <p>
-            Complete the food assignments on the
-            Split Bill page first.
+            Complete the food assignments
+            on the Split Bill page first.
           </p>
 
           <Link
@@ -607,6 +733,8 @@ async function saveBillToHistory() {
         </section>
       ) : (
         <div className="split-layout">
+
+          {/* RESTAURANT PAYMENT */}
           <div className="split-main">
             <section className="panel">
               <h2 className="panel-title">
@@ -615,7 +743,9 @@ async function saveBillToHistory() {
               </h2>
 
               <div className="summary-total">
-                <span>Total restaurant bill</span>
+                <span>
+                  Total restaurant bill
+                </span>
 
                 <strong>
                   {money(data.grandTotal)}
@@ -627,62 +757,70 @@ async function saveBillToHistory() {
               </div>
 
               <p>
-                Enter the amount each friend actually
-                paid to the restaurant. Enter zero
-                for anyone who did not pay.
+                Enter the amount each friend
+                actually paid to the restaurant.
+                Enter zero for anyone who did
+                not pay.
               </p>
 
+              {/* FRIEND PAYMENTS */}
               <div className="settlement-payment-list">
-                {data.friends.map((friend, index) => (
-                  <div
-                    className="settlement-payment-row"
-                    key={friend.id}
-                  >
-                    <div className="summary-person-name">
-                      <span
-                        className={`avatar avatar-${
-                          index % 5
-                        }`}
-                      >
-                        {friend.name[0].toUpperCase()}
-                      </span>
+                {data.friends.map(
+                  (friend, index) => (
+                    <div
+                      className="settlement-payment-row"
+                      key={friend.id}
+                    >
+                      <div className="summary-person-name">
+                        <span
+                          className={`avatar avatar-${
+                            index % 5
+                          }`}
+                        >
+                          {friend.name[0].toUpperCase()}
+                        </span>
 
-                      <div>
-                        <strong>
-                          {friend.name}
-                        </strong>
+                        <div>
+                          <strong>
+                            {friend.name}
+                          </strong>
 
-                        <small>
-                          Owes {money(friend.share)}
-                        </small>
+                          <small>
+                            Owes{" "}
+                            {money(friend.share)}
+                          </small>
+                        </div>
                       </div>
+
+                      <label>
+                        <span>Paid (₹)</span>
+
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={
+                            payments[friend.id] ??
+                            "0.00"
+                          }
+                          onChange={(event) =>
+                            updatePayment(
+                              friend.id,
+                              event.target.value
+                            )
+                          }
+                        />
+                      </label>
                     </div>
-
-                    <label>
-                      <span>Paid (₹)</span>
-
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={
-                          payments[friend.id] ??
-                          "0.00"
-                        }
-                        onChange={(event) =>
-                          updatePayment(
-                            friend.id,
-                            event.target.value
-                          )
-                        }
-                      />
-                    </label>
-                  </div>
-                ))}
+                  )
+                )}
               </div>
 
+              {/* PAYMENT TOTAL */}
               <div className="summary-total">
-                <span>Total payment entered</span>
+                <span>
+                  Total payment entered
+                </span>
 
                 <strong>
                   {validPayments
@@ -704,12 +842,14 @@ async function saveBillToHistory() {
               ) : (
                 <p className="review-match">
                   <CheckCircle2 size={18} />
-                  Payments match the restaurant bill.
+                  Payments match the
+                  restaurant bill.
                 </p>
               )}
             </section>
           </div>
 
+          {/* SETTLEMENT SUMMARY */}
           <aside className="panel summary-panel">
             <h2 className="panel-title">
               <Users size={22} />
@@ -723,22 +863,34 @@ async function saveBillToHistory() {
               </p>
             ) : (
               <>
+                {/* TRANSFER LIST */}
                 <div className="summary-list">
                   {transfers.length === 0 ? (
                     <p className="review-match">
                       <CheckCircle2 size={18} />
-                      No transfers needed. Everyone
-                      has covered their share.
+                      No transfers needed.
+                      Everyone has covered
+                      their share.
                     </p>
                   ) : (
                     transfers.map((transfer) => {
-                      const paid = isPaid(transfer);
+                      const status = getStatus(
+                        transfer
+                      );
+
+                      const confirmed =
+                        status === "confirmed";
+
+                      const key = transferKey(
+                        transfer
+                      );
 
                       return (
                         <div
                           className="settlement-transfer settlement-tracked-transfer"
-                          key={transferKey(transfer)}
+                          key={key}
                         >
+                          {/* TRANSFER DETAILS */}
                           <div className="settlement-transfer-info">
                             <div className="settlement-transfer-route">
                               <strong>
@@ -753,27 +905,72 @@ async function saveBillToHistory() {
                             </div>
 
                             <strong className="settlement-amount">
-                              {money(transfer.amount)}
+                              {money(
+                                transfer.amount
+                              )}
                             </strong>
                           </div>
 
-                          <button
-                            type="button"
+                          {/* UPI QR GENERATION */}
+                          <div
+                            style={{
+                              marginTop: 12,
+                              marginBottom: 12,
+                            }}
+                          >
+                            <button
+                              type="button"
+                              className="small-button"
+                              onClick={() =>
+                                toggleQRCode(
+                                  transfer
+                                )
+                              }
+                              aria-expanded={
+                                !!expandedQRs[key]
+                              }
+                            >
+                              <QrCode size={17} />
+
+                              {expandedQRs[key]
+                                ? "Hide UPI QR"
+                                : "Generate UPI QR"}
+                            </button>
+
+                            {expandedQRs[key] && (
+                              <UPIQRCode
+                                recipientName={
+                                  transfer.to
+                                }
+                                amount={
+                                  transfer.amount
+                                }
+                                upiId={
+                                  upiIds[
+                                    transfer.toId
+                                  ] || ""
+                                }
+                                onUpiIdChange={(
+                                  value
+                                ) =>
+                                  updateUpiId(
+                                    transfer.toId,
+                                    value
+                                  )
+                                }
+                              />
+                            )}
+                          </div>
+
+                          {/* PAYMENT STATUS */}
+                          <span
                             className={`settlement-status-button ${
-                              paid
+                              confirmed
                                 ? "is-paid"
                                 : "is-pending"
                             }`}
-                            onClick={() =>
-                              togglePaid(transfer)
-                            }
-                            aria-label={`Mark payment from ${transfer.from} to ${transfer.to} as ${
-                              paid
-                                ? "pending"
-                                : "paid"
-                            }`}
                           >
-                            {paid ? (
+                            {confirmed ? (
                               <CheckCircle2
                                 size={16}
                               />
@@ -781,22 +978,86 @@ async function saveBillToHistory() {
                               <Clock3 size={16} />
                             )}
 
-                            {paid ? "Paid" : "Pending"}
-                          </button>
+                            {status === "confirmed"
+                              ? "Confirmed Paid"
+                              : status === "awaiting"
+                                ? "Awaiting Confirmation"
+                                : "Pending"}
+                          </span>
+
+                          {/* PAYMENT ACTIONS */}
+                          <div
+                            className="settlement-actions"
+                            style={{
+                              display: "flex",
+                              gap: 8,
+                              flexWrap: "wrap",
+                              marginTop: 10,
+                            }}
+                          >
+                            {status === "pending" && (
+                              <button
+                                type="button"
+                                className="small-button"
+                                onClick={() =>
+                                  setTransferStatus(
+                                    transfer,
+                                    "awaiting"
+                                  )
+                                }
+                              >
+                                I've Paid
+                              </button>
+                            )}
+
+                            {status === "awaiting" && (
+                              <button
+                                type="button"
+                                className="small-button"
+                                onClick={() =>
+                                  setTransferStatus(
+                                    transfer,
+                                    "confirmed"
+                                  )
+                                }
+                              >
+                                <CheckCircle2
+                                  size={16}
+                                />
+                                Confirm Received
+                              </button>
+                            )}
+
+                            {status !== "pending" && (
+                              <button
+                                type="button"
+                                className="small-button"
+                                onClick={() =>
+                                  setTransferStatus(
+                                    transfer,
+                                    "pending"
+                                  )
+                                }
+                              >
+                                Reset to Pending
+                              </button>
+                            )}
+                          </div>
                         </div>
                       );
                     })
                   )}
                 </div>
 
-                {/* PAYMENT TRACKING */}
+                {/* PAYMENT PROGRESS */}
                 <div className="settlement-tracking">
                   <div className="settlement-tracking-heading">
                     <h3>Payment Progress</h3>
 
                     <span>
-                      {paidCount} of{" "}
-                      {transfers.length} paid
+                      {paidCount} confirmed ·{" "}
+                      {awaitingCount} awaiting ·{" "}
+                      {transfers.length} total
                     </span>
                   </div>
 
@@ -804,7 +1065,9 @@ async function saveBillToHistory() {
                     className="settlement-progress-track"
                     role="progressbar"
                     aria-label="Payment progress"
-                    aria-valuenow={Math.round(progress)}
+                    aria-valuenow={Math.round(
+                      progress
+                    )}
                     aria-valuemin={0}
                     aria-valuemax={100}
                   >
@@ -835,22 +1098,27 @@ async function saveBillToHistory() {
                   </div>
 
                   {transfers.length > 0 &&
-                    paidCount === transfers.length && (
+                    paidCount ===
+                      transfers.length && (
                       <p className="review-match">
-                        <CheckCircle2 size={18} />
-                        All payments are marked
-                        as received!
+                        <CheckCircle2
+                          size={18}
+                        />
+                        All payments are
+                        confirmed received!
                       </p>
                     )}
                 </div>
 
-                {/* SAVE BILL TO DJANGO HISTORY */}
+                {/* SAVE TO HISTORY */}
                 <div className="history-save-panel">
                   <h3>Save to Bill History</h3>
 
                   <p>
-                    Save this settlement to Django
-                    so you can reopen it later.
+                    Save this settlement and
+                    its UPI recipient details
+                    to Django so you can
+                    reopen it later.
                   </p>
 
                   <label htmlFor="splitmate-bill-title">
@@ -864,7 +1132,10 @@ async function saveBillToHistory() {
                     placeholder="e.g. Saturday Dinner"
                     value={billTitle}
                     onChange={(event) => {
-                      setBillTitle(event.target.value);
+                      setBillTitle(
+                        event.target.value
+                      );
+
                       setSaveError("");
                     }}
                   />
@@ -890,6 +1161,7 @@ async function saveBillToHistory() {
                   )}
                 </div>
 
+                {/* COPY AND SHARE */}
                 <div className="settlement-actions">
                   <button
                     type="button"
@@ -918,14 +1190,16 @@ async function saveBillToHistory() {
               </>
             )}
 
+            {/* SETTLEMENT NOTE */}
             <div className="summary-note">
               <CheckCircle2 size={18} />
 
               <span>
-                Settlement amounts use exact paise
-                values. Payment statuses are saved
-                for this browser session until
-                the bill is saved to Django.
+                Settlement amounts use exact
+                paise values. UPI QR codes
+                request payment but do not
+                verify it. Payment confirmation
+                is manual.
               </span>
             </div>
 

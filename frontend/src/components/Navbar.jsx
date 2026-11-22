@@ -1,59 +1,149 @@
 
-import { Link, NavLink } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, NavLink, useLocation } from "react-router-dom";
+
 import {
-  ReceiptText,
+  Zap,
   Sun,
   Moon,
   ScanText,
+  House,
+  UsersRound,
+  History,
+  Menu,
+  X,
 } from "lucide-react";
 
-function Navbar({ theme, toggleTheme }) {
-  return (
-    <header className="navbar">
-      <div className="nav-inner">
+const navItems = [
+  {
+    path: "/",
+    label: "Home",
+    Icon: House,
+    end: true,
+  },
+  {
+    path: "/scan",
+    label: "Scan Bill",
+    Icon: ScanText,
+  },
+  {
+    path: "/split",
+    label: "Split Bill",
+    Icon: UsersRound,
+  },
+  {
+    path: "/history",
+    label: "History",
+    Icon: History,
+  },
+];
 
-        {/* SplitMate Logo */}
-        <Link to="/" className="brand">
-          <span className="brand-logo">
-            <ReceiptText size={22} />
+export default function Navbar({
+  theme,
+  toggleTheme,
+}) {
+  const location = useLocation();
+
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Close mobile menu when navigating.
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
+
+  // Close menu with Escape.
+  useEffect(() => {
+    function handleEscape(event) {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", handleEscape);
+
+    return () => {
+      window.removeEventListener(
+        "keydown",
+        handleEscape
+      );
+    };
+  }, []);
+
+  return (
+    <header className="navbar neo-navbar">
+      <div className="nav-inner neo-nav-inner">
+
+        {/* BRAND */}
+        <Link
+          to="/"
+          className="brand neo-brand"
+          aria-label="SplitMate Home"
+          onClick={() => setMenuOpen(false)}
+        >
+          <span className="brand-logo neo-brand-logo">
+            <Zap
+              size={21}
+              fill="currentColor"
+              aria-hidden="true"
+            />
           </span>
 
-          <span>
-            Split<span className="accent">Mate</span>
+          <span className="neo-brand-text">
+            SplitMate
+            <span className="neo-brand-dot">.</span>
           </span>
         </Link>
 
-        {/* Navigation */}
-        <nav className="nav-actions" aria-label="Main navigation">
+        {/* DESKTOP AND MOBILE NAVIGATION */}
+        <nav
+          id="splitmate-main-navigation"
+          className={`nav-actions neo-nav-actions ${
+            menuOpen ? "neo-menu-open" : ""
+          }`}
+          aria-label="Main navigation"
+        >
+          {navItems.map(
+            ({ path, label, Icon, end }) => (
+              <NavLink
+                key={path}
+                to={path}
+                end={end}
+                onClick={() => setMenuOpen(false)}
+                className={({ isActive }) =>
+                  `nav-link neo-nav-link ${
+                    isActive ? "active" : ""
+                  }`
+                }
+              >
+                <Icon
+                  size={19}
+                  aria-hidden="true"
+                />
 
-          <NavLink to="/" end>
-            Home
-          </NavLink>
+                <span>{label}</span>
+              </NavLink>
+            )
+          )}
+        </nav>
 
-          <NavLink to="/scan">
-            <ScanText size={18} />
-            Scan Bill
-          </NavLink>
+        {/* RIGHT ACTIONS */}
+        <div className="neo-nav-controls">
 
-          <NavLink to="/split">
-            Split Bill
-          </NavLink>
-
-          <NavLink to="/history">
-  Bill History
-</NavLink>
-
-          {/* Light / Dark Theme Toggle */}
+          {/* THEME TOGGLE */}
           <button
             type="button"
-            className="theme-button"
+            className="theme-button neo-theme-button"
             onClick={toggleTheme}
             aria-label={
               theme === "light"
                 ? "Switch to dark mode"
                 : "Switch to light mode"
             }
-            title="Toggle theme"
+            title={
+              theme === "light"
+                ? "Dark mode"
+                : "Light mode"
+            }
           >
             {theme === "light" ? (
               <Moon size={20} />
@@ -62,10 +152,29 @@ function Navbar({ theme, toggleTheme }) {
             )}
           </button>
 
-        </nav>
+          {/* MOBILE MENU TOGGLE */}
+          <button
+            type="button"
+            className="neo-mobile-menu-button"
+            onClick={() =>
+              setMenuOpen((current) => !current)
+            }
+            aria-label={
+              menuOpen
+                ? "Close navigation menu"
+                : "Open navigation menu"
+            }
+            aria-expanded={menuOpen}
+            aria-controls="splitmate-main-navigation"
+          >
+            {menuOpen ? (
+              <X size={23} />
+            ) : (
+              <Menu size={23} />
+            )}
+          </button>
+        </div>
       </div>
     </header>
   );
 }
-
-export default Navbar;

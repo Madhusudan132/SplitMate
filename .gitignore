@@ -37,3 +37,7 @@ Thumbs.db
 
 # Uploaded files
 backend/media/
+
+# Local project backups
+SplitMate-src.zip
+frontend.zip

@@ -15,14 +15,15 @@ import {
   X,
   Wallet,
   Users,
+  Sparkles,
+  WifiOff,
 } from "lucide-react";
 
 import { historyApi } from "../api/history";
 
-
-// =============================================
-// CURRENCY FORMATTER
-// =============================================
+// ==========================================
+// HELPERS
+// ==========================================
 
 function money(paise) {
   const value = Number(paise) || 0;
@@ -32,11 +33,6 @@ function money(paise) {
     maximumFractionDigits: 2,
   })}`;
 }
-
-
-// =============================================
-// DATE FORMATTER
-// =============================================
 
 function formatDate(value) {
   if (!value) return "Unknown date";
@@ -54,31 +50,29 @@ function formatDate(value) {
   });
 }
 
-
-// =============================================
-// MAIN COMPONENT
-// =============================================
+// ==========================================
+// BILL HISTORY PAGE
+// ==========================================
 
 export default function BillHistory() {
   const [bills, setBills] = useState([]);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState(false);
   const [deleting, setDeleting] = useState(null);
 
-  // Phase 4.1 controls
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState("newest");
 
-
-  // =============================================
-  // FETCH SAVED BILLS
-  // =============================================
+  // ==========================================
+  // LOAD SAVED BILLS
+  // ==========================================
 
   async function loadBills() {
     setLoading(true);
     setError("");
+    setLoadError(false);
 
     try {
       const result = await historyApi.list();
@@ -89,6 +83,8 @@ export default function BillHistory() {
           : []
       );
     } catch (err) {
+      setLoadError(true);
+
       setError(
         err.message || "Unable to load bill history."
       );
@@ -97,15 +93,13 @@ export default function BillHistory() {
     }
   }
 
-
   useEffect(() => {
     loadBills();
   }, []);
 
-
-  // =============================================
+  // ==========================================
   // DELETE SAVED BILL
-  // =============================================
+  // ==========================================
 
   async function deleteBill(bill) {
     const confirmed = window.confirm(
@@ -121,9 +115,7 @@ export default function BillHistory() {
       await historyApi.delete(bill.id);
 
       setBills((current) =>
-        current.filter(
-          (item) => item.id !== bill.id
-        )
+        current.filter((item) => item.id !== bill.id)
       );
     } catch (err) {
       setError(
@@ -134,10 +126,9 @@ export default function BillHistory() {
     }
   }
 
-
-  // =============================================
-  // FILTER AND SORT BILLS
-  // =============================================
+  // ==========================================
+  // SEARCH, FILTER AND SORT
+  // ==========================================
 
   const filteredBills = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -147,11 +138,20 @@ export default function BillHistory() {
         bill.title || ""
       ).toLowerCase();
 
-      // The existing list API returns a title
-      // and friendCount, but not friend names.
-      // Search therefore matches bill titles.
+      const friendNames = Array.isArray(
+        bill.friendNames
+      )
+        ? bill.friendNames
+        : [];
+
+      const matchesTitle = title.includes(query);
+
+      const matchesFriend = friendNames.some((name) =>
+        String(name).toLowerCase().includes(query)
+      );
+
       const matchesSearch =
-        title.includes(query);
+        matchesTitle || matchesFriend;
 
       const matchesStatus =
         statusFilter === "all" ||
@@ -163,11 +163,17 @@ export default function BillHistory() {
 
     results.sort((a, b) => {
       if (sortOrder === "amount-high") {
-        return b.grandTotal - a.grandTotal;
+        return (
+          Number(b.grandTotal) -
+          Number(a.grandTotal)
+        );
       }
 
       if (sortOrder === "amount-low") {
-        return a.grandTotal - b.grandTotal;
+        return (
+          Number(a.grandTotal) -
+          Number(b.grandTotal)
+        );
       }
 
       const aDate = new Date(
@@ -186,10 +192,9 @@ export default function BillHistory() {
     return results;
   }, [bills, searchQuery, statusFilter, sortOrder]);
 
-
-  // =============================================
-  // BILL STATISTICS
-  // =============================================
+  // ==========================================
+  // STATISTICS
+  // ==========================================
 
   const totalSpent = bills.reduce(
     (sum, bill) =>
@@ -203,10 +208,9 @@ export default function BillHistory() {
 
   const pendingCount = bills.length - settledCount;
 
-
-  // =============================================
+  // ==========================================
   // CLEAR FILTERS
-  // =============================================
+  // ==========================================
 
   function clearFilters() {
     setSearchQuery("");
@@ -214,31 +218,103 @@ export default function BillHistory() {
     setSortOrder("newest");
   }
 
+  // ==========================================
+  // OFFLINE STATUS
+  // ==========================================
+
+  const isOffline =
+    typeof navigator !== "undefined" &&
+    !navigator.onLine;
+
+  const showLoadFailure =
+    loadError && bills.length === 0;
+
+  // ==========================================
+  // RENDER
+  // ==========================================
 
   return (
-    <div className="split-page history-page">
+    <div className="split-page history-page neo-history-page">
 
-      {/* =========================================
-          PAGE HEADING
-      ========================================= */}
+      {/* ======================================
+          HERO
+      ====================================== */}
 
-      <div className="page-heading">
+      <div className="page-heading neo-history-hero">
         <span className="section-label">
-          SPLITMATE HISTORY
+          SPLITMATE / YOUR ARCHIVE
         </span>
 
-        <h1>Your bill history.</h1>
+        <h1>
+          Your Bill History
+          <span className="neo-history-exclamation">
+            !
+          </span>
+        </h1>
 
         <p>
-          Revisit restaurant bills, find past
-          expenses, and continue tracking payments.
+          Every split. Every friend. Every payment.
+          All in one place.
         </p>
+
+        <div className="neo-history-hero-icon">
+          <ReceiptText size={28} />
+        </div>
       </div>
 
+      {/* ======================================
+          STATISTICS
+      ====================================== */}
 
-      <section className="panel">
+      {!loading && !showLoadFailure && (
+        <div className="history-stats neo-history-stats">
 
-        {/* HEADER */}
+          <div className="history-stat neo-stat-purple">
+            <span>
+              <ReceiptText size={18} />
+              TOTAL BILLS
+            </span>
+
+            <strong>{bills.length}</strong>
+          </div>
+
+          <div className="history-stat neo-stat-yellow">
+            <span>
+              <Wallet size={18} />
+              TOTAL SPENT
+            </span>
+
+            <strong>{money(totalSpent)}</strong>
+          </div>
+
+          <div className="history-stat neo-stat-green">
+            <span>
+              <CheckCircle2 size={18} />
+              SETTLED
+            </span>
+
+            <strong>{settledCount}</strong>
+          </div>
+
+          <div className="history-stat neo-stat-pink">
+            <span>
+              <Clock3 size={18} />
+              PENDING
+            </span>
+
+            <strong>{pendingCount}</strong>
+          </div>
+
+        </div>
+      )}
+
+      {/* ======================================
+          SAVED BILLS PANEL
+      ====================================== */}
+
+      <section className="panel neo-history-main">
+
+        {/* SECTION HEADING */}
 
         <div className="history-heading-row">
           <h2 className="panel-title">
@@ -248,33 +324,61 @@ export default function BillHistory() {
 
           <button
             type="button"
-            className="small-button"
+            className="small-button neo-history-refresh"
             onClick={loadBills}
             disabled={loading}
           >
             <RefreshCw
               size={17}
-              className={loading ? "history-spin" : ""}
+              className={
+                loading ? "history-spin" : ""
+              }
             />
 
             {loading ? "Refreshing..." : "Refresh"}
           </button>
         </div>
 
-
-        {/* ERROR */}
+        {/* ======================================
+            ERROR MESSAGE
+        ====================================== */}
 
         {error && (
-          <p
+          <div
             className="validation-message"
             role="alert"
           >
-            {error}
-          </p>
+            {loadError && isOffline && (
+              <WifiOff
+                size={22}
+                style={{
+                  marginBottom: "8px",
+                }}
+              />
+            )}
+
+            <p>{error}</p>
+
+            {loadError && (
+              <button
+                type="button"
+                className="small-button"
+                onClick={loadBills}
+                disabled={loading}
+                style={{
+                  marginTop: "12px",
+                }}
+              >
+                <RefreshCw size={16} />
+                Try Again
+              </button>
+            )}
+          </div>
         )}
 
-
-        {/* LOADING */}
+        {/* ======================================
+            LOADING STATE
+        ====================================== */}
 
         {loading ? (
           <div className="history-loading">
@@ -285,76 +389,51 @@ export default function BillHistory() {
 
             <p>Loading your saved bills...</p>
           </div>
+        ) : showLoadFailure ? (
+          <div className="history-empty neo-history-empty">
+
+            {isOffline ? (
+              <WifiOff size={38} />
+            ) : (
+              <RefreshCw size={38} />
+            )}
+
+            <h3>
+              {isOffline
+                ? "You're offline!"
+                : "Unable to load bills"}
+            </h3>
+
+            <p>
+              {isOffline
+                ? "Connect to the internet to access your saved bills."
+                : "Please check your connection and try again."}
+            </p>
+
+            <button
+              type="button"
+              className="small-button"
+              onClick={loadBills}
+            >
+              <RefreshCw size={17} />
+              Try Again
+            </button>
+
+          </div>
         ) : (
           <>
 
-            {/* =====================================
-                STATISTICS
-            ===================================== */}
-
-            <div className="history-stats">
-
-              <div className="history-stat">
-                <span>
-                  <ReceiptText size={16} />
-                  Total Bills
-                </span>
-
-                <strong>
-                  {bills.length}
-                </strong>
-              </div>
-
-
-              <div className="history-stat">
-                <span>
-                  <Wallet size={16} />
-                  Total Spent
-                </span>
-
-                <strong>
-                  {money(totalSpent)}
-                </strong>
-              </div>
-
-
-              <div className="history-stat">
-                <span>
-                  <CheckCircle2 size={16} />
-                  Settled Bills
-                </span>
-
-                <strong>
-                  {settledCount}
-                </strong>
-              </div>
-
-
-              <div className="history-stat">
-                <span>
-                  <Clock3 size={16} />
-                  Pending Bills
-                </span>
-
-                <strong>
-                  {pendingCount}
-                </strong>
-              </div>
-
-            </div>
-
-
-            {/* =====================================
+            {/* ==================================
                 SEARCH AND FILTERS
-            ===================================== */}
+            ================================== */}
 
             {bills.length > 0 && (
-              <div className="history-filter-panel">
+              <div className="history-filter-panel neo-history-filters">
 
                 <div className="history-filter-heading">
                   <h3>
                     <SlidersHorizontal size={19} />
-                    Find Your Bills
+                    FIND YOUR BILLS
                   </h3>
 
                   <span>
@@ -363,7 +442,6 @@ export default function BillHistory() {
                   </span>
                 </div>
 
-
                 {/* SEARCH */}
 
                 <div className="history-search-box">
@@ -371,19 +449,21 @@ export default function BillHistory() {
 
                   <input
                     type="search"
-                    placeholder="Search by bill name..."
+                    placeholder="Search bills or friends..."
                     value={searchQuery}
                     onChange={(event) =>
                       setSearchQuery(event.target.value)
                     }
-                    aria-label="Search saved bills"
+                    aria-label="Search saved bills by title or friend"
                   />
 
                   {searchQuery && (
                     <button
                       type="button"
                       className="history-search-clear"
-                      onClick={() => setSearchQuery("")}
+                      onClick={() =>
+                        setSearchQuery("")
+                      }
                       aria-label="Clear search"
                     >
                       <X size={18} />
@@ -391,8 +471,7 @@ export default function BillHistory() {
                   )}
                 </div>
 
-
-                {/* STATUS FILTER */}
+                {/* STATUS FILTERS */}
 
                 <div
                   className="history-filter-tabs"
@@ -406,7 +485,9 @@ export default function BillHistory() {
                         ? "active"
                         : ""
                     }
-                    aria-pressed={statusFilter === "all"}
+                    aria-pressed={
+                      statusFilter === "all"
+                    }
                     onClick={() =>
                       setStatusFilter("all")
                     }
@@ -422,7 +503,9 @@ export default function BillHistory() {
                         ? "active"
                         : ""
                     }
-                    aria-pressed={statusFilter === "pending"}
+                    aria-pressed={
+                      statusFilter === "pending"
+                    }
                     onClick={() =>
                       setStatusFilter("pending")
                     }
@@ -439,7 +522,9 @@ export default function BillHistory() {
                         ? "active"
                         : ""
                     }
-                    aria-pressed={statusFilter === "settled"}
+                    aria-pressed={
+                      statusFilter === "settled"
+                    }
                     onClick={() =>
                       setStatusFilter("settled")
                     }
@@ -450,8 +535,7 @@ export default function BillHistory() {
                   </button>
                 </div>
 
-
-                {/* SORTING */}
+                {/* SORT */}
 
                 <div className="history-sort-row">
                   <label htmlFor="history-sort">
@@ -499,36 +583,32 @@ export default function BillHistory() {
               </div>
             )}
 
-
-            {/* =====================================
+            {/* ==================================
                 EMPTY HISTORY
-            ===================================== */}
+            ================================== */}
 
             {bills.length === 0 ? (
-              <div className="history-empty">
-                <ReceiptText size={35} />
+              <div className="history-empty neo-history-empty">
+                <ReceiptText size={38} />
 
-                <h3>No saved bills yet</h3>
+                <h3>No saved bills yet!</h3>
 
                 <p>
-                  Complete a settlement and save
-                  it to see it here.
+                  Your future restaurant adventures
+                  will appear here.
                 </p>
 
                 <Link
                   to="/scan"
                   className="small-button"
                 >
-                  Scan a Bill
+                  Scan Your First Bill
                   <ArrowRight size={17} />
                 </Link>
               </div>
             ) : filteredBills.length === 0 ? (
-
-              /* NO FILTER RESULTS */
-
-              <div className="history-empty">
-                <Search size={35} />
+              <div className="history-empty neo-history-empty">
+                <Search size={38} />
 
                 <h3>No matching bills</h3>
 
@@ -546,34 +626,38 @@ export default function BillHistory() {
                   Clear Filters
                 </button>
               </div>
-
             ) : (
 
-              /* ===================================
+              /* ==================================
                   BILL CARDS
-              =================================== */
+              ================================== */
 
-              <div className="history-list">
+              <div className="history-list neo-history-list">
 
-                {filteredBills.map((bill) => (
+                {filteredBills.map((bill, index) => (
                   <article
-                    className="history-bill"
+                    className={`history-bill neo-history-bill ${
+                      bill.isSettled
+                        ? "neo-bill-settled"
+                        : "neo-bill-pending"
+                    }`}
                     key={bill.id}
                   >
 
-                    {/* ICON */}
-
                     <div className="history-bill-icon">
-                      <ReceiptText size={22} />
+                      {index % 3 === 0 ? (
+                        <ReceiptText size={24} />
+                      ) : index % 3 === 1 ? (
+                        <Wallet size={24} />
+                      ) : (
+                        <Sparkles size={24} />
+                      )}
                     </div>
-
-
-                    {/* BILL INFORMATION */}
 
                     <div className="history-bill-content">
                       <h3>{bill.title}</h3>
 
-                      <span>
+                      <span className="neo-history-meta">
                         {formatDate(bill.createdAt)}
                         {" · "}
                         <Users
@@ -605,9 +689,6 @@ export default function BillHistory() {
                       </span>
                     </div>
 
-
-                    {/* BILL ACTIONS */}
-
                     <div className="history-bill-actions">
                       <strong>
                         {money(bill.grandTotal)}
@@ -618,14 +699,16 @@ export default function BillHistory() {
                           className="small-button"
                           to={`/history/${bill.id}`}
                         >
-                          View
+                          View Bill
                           <ArrowRight size={16} />
                         </Link>
 
                         <button
                           type="button"
                           className="history-delete"
-                          disabled={deleting === bill.id}
+                          disabled={
+                            deleting === bill.id
+                          }
                           onClick={() =>
                             deleteBill(bill)
                           }
@@ -646,7 +729,6 @@ export default function BillHistory() {
         )}
 
       </section>
-
     </div>
   );
 }

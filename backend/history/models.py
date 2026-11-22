@@ -35,24 +35,37 @@ class SavedBill(models.Model):
         max_length=120
     )
 
-    # Stored in paise
+    # All monetary amounts are stored in paise.
     grand_total = models.BigIntegerField()
 
-    # Complete settlement snapshot
+    # Friends and their individual shares.
     friends = models.JSONField(
         default=list
     )
 
+    # Amount each friend paid to the restaurant.
     payments = models.JSONField(
         default=dict
     )
 
+    # Settlement transfers and payment statuses.
     transfers = models.JSONField(
         default=list
     )
 
-    # NEW: Optional receipt details
+    # Original scanned receipt and assignments.
     receipt_data = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    # Recipient friend ID -> UPI ID.
+    # Example:
+    # {
+    #     "friend_1": "rahul@upi",
+    #     "friend_2": "madhusudan@oksbi"
+    # }
+    upi_ids = models.JSONField(
         default=dict,
         blank=True,
     )
@@ -71,7 +84,15 @@ class SavedBill(models.Model):
     @property
     def is_settled(self):
         return all(
-            transfer.get("paid") is True
+            (
+                transfer.get("status") == "confirmed"
+                if transfer.get("status") in {
+                    "pending",
+                    "awaiting",
+                    "confirmed",
+                }
+                else transfer.get("paid") is True
+            )
             for transfer in self.transfers
         )
 
