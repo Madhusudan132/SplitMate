@@ -1,4 +1,3 @@
-
 # scanner/ocr_service.py
 
 from io import BytesIO
@@ -19,7 +18,7 @@ from .receipt_validator import validate_receipt
 
 import os
 import platform
-import pytesseract
+from time import perf_counter
 
 if platform.system() == "Windows":
     pytesseract.pytesseract.tesseract_cmd = r"D:\Tools\tesseract.exe"
@@ -346,7 +345,7 @@ def numeric_ocr(crop, psm=7):
     ).strip()
 
 
-def get_price_candidates(image, line):
+def get_price_candidates(image, line, force=False):
     """
     Scan the rightmost amount-like word separately.
 
@@ -399,6 +398,9 @@ def get_price_candidates(image, line):
     candidates = [
         target["text"],
     ]
+
+    if not force and target["confidence"] >= 90 and re.fullmatch(r"\d+(?:[.,]\d+)*", target["text"]):
+        return candidates
 
     for psm in (7, 8):
         reading = numeric_ocr(
@@ -532,6 +534,7 @@ def collect_price_candidates(
     image,
     lines,
     items,
+    force=False,
 ):
     """
     Attach numeric OCR alternatives to items.
@@ -595,6 +598,7 @@ def collect_price_candidates(
         alternatives = get_price_candidates(
             image,
             matched,
+            force=force or bool(item.get("needs_review")) or to_decimal(item.get("total_price")) is None,
         )
 
         candidates.append({
@@ -607,63 +611,59 @@ def collect_price_candidates(
     return candidates
 
 
-def read_receipt(image_file):
-    rgb_image = prepare_image(image_file)
-
-    variants = create_variants(
-        rgb_image
+def is_strong_result(result):
+    """Conservative heuristic; matching totals do not prove accuracy."""
+    parsed = result["parsed"]
+    validation = result["validation"]
+    items = parsed["items"]
+    subtotal = to_decimal(parsed["summary"].get("subtotal"))
+    return (
+        bool(items)
+        and subtotal is not None and subtotal > 0
+        and validation.get("subtotal_matches") is True
+        and not validation.get("missing_price_indices")
+        and result["confidence"] >= 90
+        and all(not item.get("needs_review")
+                and to_decimal(item.get("total_price")) is not None
+                and to_decimal(item.get("total_price")) > 0
+                for item in items)
     )
 
-    results = []
 
-    # Keep the existing eight-pass approach.
+def read_receipt(image_file):
+    started = perf_counter()
+    rgb_image = prepare_image(image_file)
+    variants = create_variants(rgb_image)
+    results = []
+    # Set OCR_FAST_MODE=0 to restore exhaustive OCR and price checks.
+    fast_mode = os.getenv("OCR_FAST_MODE", "1") == "1"
+
     for variant_name, image in variants.items():
         for psm in (4, 6):
+            pass_started = perf_counter()
             data = pytesseract.image_to_data(
-                image,
-                config=f"--psm {psm}",
-                output_type=Output.DICT,
+                image, config=f"--psm {psm}", output_type=Output.DICT,
             )
-
-            lines = reconstruct_lines(
-                data
-            )
-
-            raw_text = "\n".join(
-                line["text"]
-                for line in lines
-            )
-
-            parsed = parse_receipt(
-                raw_text
-            )
-
-            validation = validate_receipt(
-                parsed["items"],
-                parsed["summary"],
-            )
-
-            confidence = get_confidence(
-                data
-            )
-
-            score = score_result(
-                parsed,
-                validation,
-                confidence,
-            )
-
-            results.append({
-                "variant": variant_name,
-                "psm": psm,
-                "raw_text": raw_text,
-                "lines": lines,
-                "image": image,
-                "parsed": parsed,
-                "validation": validation,
-                "confidence": confidence,
-                "score": score,
-            })
+            lines = reconstruct_lines(data)
+            raw_text = "\n".join(line["text"] for line in lines)
+            parsed = parse_receipt(raw_text)
+            validation = validate_receipt(parsed["items"], parsed["summary"])
+            confidence = get_confidence(data)
+            score = score_result(parsed, validation, confidence)
+            result = {
+                "variant": variant_name, "psm": psm,
+                "raw_text": raw_text, "lines": lines, "image": image,
+                "parsed": parsed, "validation": validation,
+                "confidence": confidence, "score": score,
+            }
+            results.append(result)
+            print(f"SplitMate OCR {variant_name}/{psm}: "
+                  f"{perf_counter() - pass_started:.2f}s", flush=True)
+        # Require two strong readings agreeing on all parsed fields.
+        first, second = results[-2:]
+        if (fast_mode and is_strong_result(first) and is_strong_result(second)
+                and first["parsed"] == second["parsed"]):
+            break
 
     best = max(
         results,
@@ -679,6 +679,7 @@ def read_receipt(image_file):
         best["image"],
         best["lines"],
         items,
+        force=not fast_mode or not is_strong_result(best),
     )
 
     # Compare numeric alternatives with the
@@ -709,6 +710,9 @@ def read_receipt(image_file):
         items,
         best["parsed"]["summary"],
     )
+
+    print(f"SplitMate OCR total: {perf_counter() - started:.2f}s | "
+          f"Passes: {len(results)} | Items: {len(items)}", flush=True)
 
     return {
         "raw_text": best["raw_text"],
