@@ -17,9 +17,16 @@ from .receipt_parser import parse_receipt
 from .receipt_validator import validate_receipt
 
 
-pytesseract.pytesseract.tesseract_cmd = (
-    r"D:\Tools\tesseract.exe"
-)
+import os
+import platform
+import pytesseract
+
+if platform.system() == "Windows":
+    pytesseract.pytesseract.tesseract_cmd = r"D:\Tools\tesseract.exe"
+else:
+    pytesseract.pytesseract.tesseract_cmd = os.getenv(
+        "TESSERACT_CMD", "/usr/bin/tesseract"
+    )
 
 # The parser remains responsible for deciding
 # whether an amount is valid.
